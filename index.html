@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Hisaab Khata</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#212B22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Hisaab">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📒</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Firebase (compat build, loaded from Google's CDN — required for auth + the shared ledger to sync between both phones) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<style>
+  :root{
+    --paper: #E9EFE4;
+    --paper-line: #C9D6C0;
+    --sheet: #FBFCF8;
+    --ink: #212B22;
+    --ink-soft: #5B6B58;
+    --brass: #A8783A;
+    --brass-deep: #8A6229;
+    --me: #2F5233;
+    --friend: #8B4A3D;
+    --danger: #B23A2E;
+    --radius: 3px;
+    color-scheme: light;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; height:100%;}
+  body{
+    background: var(--paper);
+    background-image:
+      repeating-linear-gradient(var(--paper) 0 27px, var(--paper-line) 27px 28px);
+    color: var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3, .display{ font-family:'Lora', serif; }
+  .num{ font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+
+  #app{ max-width: 760px; margin: 0 auto; padding: 22px 16px 90px; }
+
+  /* ---------- Header ---------- */
+  .masthead{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 3px double var(--ink);
+    padding-bottom: 10px; margin-bottom: 18px;
+  }
+  .masthead h1{ font-size: 1.5rem; font-weight:700; margin:0; letter-spacing:.2px;}
+  .masthead .who{ font-size:.8rem; color:var(--ink-soft); }
+  .masthead button{ background:none;border:none; font-size:.78rem; color:var(--ink-soft); text-decoration:underline; cursor:pointer; padding:0;}
+
+  /* ---------- Balance hero ---------- */
+  .balance-block{ margin: 6px 0 26px; }
+  .balance-block .label{ font-size:.85rem; color:var(--ink-soft); margin-bottom:2px;}
+  .balance-block .figure{ font-size: 2.5rem; font-weight:700; line-height:1.05; }
+  .balance-block .figure.owe-me{ color: var(--me); }
+  .balance-block .figure.owe-friend{ color: var(--friend); }
+  .balance-block .figure.settled{ color: var(--ink); }
+  .balance-block .sub{ font-size:.85rem; color:var(--ink-soft); margin-top:4px; }
+
+  /* ---------- Auth screen ---------- */
+  .auth-wrap{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;}
+  .auth-card{
+    background:var(--sheet); border:1px solid var(--paper-line);
+    padding:28px 24px; width:100%; max-width:360px;
+    box-shadow: 0 1px 0 var(--paper-line);
+  }
+  .auth-card h1{ font-size:1.6rem; margin:0 0 4px;}
+  .auth-card p.tag{ color:var(--ink-soft); font-size:.85rem; margin:0 0 22px;}
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:.75rem; color:var(--ink-soft); margin-bottom:4px;}
+  .field input, .field select{
+    width:100%; padding:10px 11px; font-size:.95rem;
+    border:1px solid var(--paper-line); background:#fff; color:var(--ink);
+    border-radius: var(--radius); font-family:'Inter',sans-serif;
+  }
+  .field input:focus, .field select:focus, button:focus-visible{
+    outline: 2px solid var(--brass); outline-offset:1px;
+  }
+  .btn{
+    display:inline-block; width:100%; padding:11px; font-size:.95rem; font-weight:600;
+    background: var(--ink); color:#fff; border:none; border-radius:var(--radius);
+    cursor:pointer;
+  }
+  .btn:hover{ background:#0f150f; }
+  .btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--ink); }
+  .btn.secondary:hover{ background: var(--paper); }
+  .switcher{ text-align:center; margin-top:14px; font-size:.85rem; color:var(--ink-soft);}
+  .switcher button{ background:none;border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem;}
+  .auth-error{ background:#FBEAE8; border:1px solid #E7B9B2; color:var(--danger); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
+
+  /* ---------- Add entry ---------- */
+  .add-card{
+    background:var(--sheet); border:1px solid var(--paper-line); padding:16px;
+    margin-bottom: 22px;
+  }
+  .add-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  .add-row .grow{ flex:1 1 140px; }
+  .toggle-pair{ display:flex; border:1px solid var(--ink); border-radius:var(--radius); overflow:hidden; }
+  .toggle-pair button{
+    flex:1; padding:9px 6px; background:#fff; border:none; font-size:.82rem; font-weight:600;
+    color:var(--ink-soft); cursor:pointer; font-family:'Inter',sans-serif;
+  }
+  .toggle-pair button.active.me{ background:var(--me); color:#fff; }
+  .toggle-pair button.active.friend{ background:var(--friend); color:#fff; }
+  .add-card input, .add-card textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--paper-line); border-radius:var(--radius);
+    font-size:.92rem; font-family:'Inter',sans-serif; background:#fff; color:var(--ink);
+  }
+  .add-card textarea{ resize:vertical; min-height:38px; font-family:'Inter',sans-serif; }
+  .amount-field{ position:relative; }
+  .amount-field input{ font-family:'IBM Plex Mono',monospace; padding-left:24px; font-size:1rem;}
+  .amount-field .rupee{ position:absolute; left:10px; top:9px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
+  .calc-toggle{ background:none; border:1px solid var(--paper-line); border-radius:var(--radius); padding:8px 10px; cursor:pointer; font-size:.85rem; color:var(--ink-soft);}
+  .calc-toggle:hover{ border-color:var(--ink);}
+
+  /* ---------- Ledger list ---------- */
+  .ledger-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
+  .ledger-head h2{ font-size:1rem; margin:0; font-weight:600;}
+  .empty{ text-align:center; color:var(--ink-soft); padding:40px 10px; font-size:.9rem;}
+  .entry{
+    display:flex; gap:12px; align-items:flex-start;
+    padding:12px 4px; border-bottom:1px solid var(--paper-line);
+  }
+  .entry .who-dot{ width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none;}
+  .entry .who-dot.me{ background:var(--me); }
+  .entry .who-dot.friend{ background:var(--friend); }
+  .entry .body{ flex:1; min-width:0; }
+  .entry .top-line{ display:flex; justify-content:space-between; gap:10px; }
+  .entry .who-name{ font-size:.82rem; color:var(--ink-soft); }
+  .entry .amt{ font-size:1.05rem; font-weight:600; }
+  .entry .amt.me{ color:var(--me); }
+  .entry .amt.friend{ color:var(--friend); }
+  .entry .note{ font-size:.88rem; color:var(--ink); margin-top:2px; word-break:break-word;}
+  .entry .date{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
+  .entry .del{ background:none; border:none; color:var(--ink-soft); font-size:.75rem; text-decoration:underline; cursor:pointer; padding:0; margin-top:4px;}
+  .entry .del:hover{ color:var(--danger); }
+
+  /* ---------- Calculator drawer ---------- */
+  .calc-drawer{
+    position:fixed; right:14px; bottom:14px; z-index:40;
+  }
+  .calc-fab{
+    width:52px;height:52px;border-radius:50%; background:var(--ink); color:#fff; border:none;
+    font-size:1.3rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25);
+  }
+  .calc-panel{
+    position:fixed; right:14px; bottom:76px; width:230px; background:var(--sheet);
+    border:1px solid var(--ink); border-radius:var(--radius); padding:10px; z-index:41;
+    box-shadow:0 4px 14px rgba(0,0,0,.2);
+  }
+  .calc-panel .screen{
+    font-family:'IBM Plex Mono',monospace; font-size:1.3rem; text-align:right;
+    background:#fff; border:1px solid var(--paper-line); padding:10px 8px; margin-bottom:8px;
+    overflow-x:auto; white-space:nowrap;
+  }
+  .calc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
+  .calc-grid button{
+    padding:10px 0; font-size:.95rem; border:1px solid var(--paper-line); background:#fff;
+    border-radius:var(--radius); cursor:pointer; font-family:'IBM Plex Mono',monospace;
+  }
+  .calc-grid button:hover{ background:var(--paper); }
+  .calc-grid button.op{ color:var(--brass-deep); font-weight:600; }
+  .calc-grid button.eq{ background:var(--ink); color:#fff; grid-column: span 2; }
+  .calc-use{ width:100%; margin-top:8px; padding:8px; font-size:.8rem; background:var(--me); color:#fff; border:none; border-radius:var(--radius); cursor:pointer;}
+
+  .hidden{ display:none !important; }
+  @media (max-width:420px){
+    .balance-block .figure{ font-size:2.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH SCREEN ===================== -->
+<div id="auth-screen" class="auth-wrap">
+  <div class="auth-card">
+    <h1>Hisaab Khata</h1>
+    <p class="tag">Tumhaare aur tumhaare dost ke beech ka saanjha hisaab-kitaab.</p>
+
+    <div id="auth-error" class="auth-error hidden"></div>
+
+    <div id="signup-fields" class="hidden">
+      <div class="field">
+        <label for="display-name">Tumhaara naam (jo dusre ko dikhega)</label>
+        <input id="display-name" type="text" placeholder="jaise: Rahul" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="auth-email">Email</label>
+      <input id="auth-email" type="email" placeholder="tumhaara@email.com" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label for="auth-pass">Password</label>
+      <input id="auth-pass" type="password" placeholder="kam se kam 6 letter" autocomplete="current-password" />
+    </div>
+
+    <button class="btn" id="auth-submit">Login karo</button>
+
+    <div class="switcher">
+      <span id="switch-text">Khaata nahin hai?</span>
+      <button id="switch-btn">Naya account banao</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MAIN APP ===================== -->
+<div id="app" class="hidden">
+  <div class="masthead">
+    <div>
+      <h1>Hisaab Khata</h1>
+      <div class="who" id="who-line"></div>
+    </div>
+    <button id="logout-btn">Logout</button>
+  </div>
+
+  <div class="balance-block">
+    <div class="label">Abhi ka hisaab</div>
+    <div class="figure" id="balance-figure">—</div>
+    <div class="sub" id="balance-sub"></div>
+  </div>
+
+  <div class="add-card">
+    <div class="add-row">
+      <div class="toggle-pair" id="who-toggle">
+        <button type="button" data-who="me" class="me">Maine diye</button>
+        <button type="button" data-who="friend" class="friend">Inhone diye</button>
+      </div>
+    </div>
+    <div class="add-row">
+      <div class="grow amount-field">
+        <span class="rupee">₹</span>
+        <input id="entry-amount" type="number" inputmode="decimal" step="0.01" placeholder="0" />
+      </div>
+      <input id="entry-date" type="date" style="flex:1 1 140px;" />
+      <button type="button" class="calc-toggle" id="open-calc-from-form">🧮 Calculator</button>
+    </div>
+    <div class="add-row">
+      <textarea id="entry-note" placeholder="Note — jaise: chai-nashta, movie ticket..." rows="2"></textarea>
+    </div>
+    <button class="btn" id="add-entry-btn">Entry jodo</button>
+  </div>
+
+  <div class="ledger-head">
+    <h2>Sabhi entries</h2>
+  </div>
+  <div id="entries-list"></div>
+</div>
+
+<!-- Calculator floating widget -->
+<div class="calc-drawer">
+  <div id="calc-panel" class="calc-panel hidden">
+    <div class="screen" id="calc-screen">0</div>
+    <div class="calc-grid" id="calc-grid"></div>
+    <button class="calc-use" id="calc-use-btn">Amount mein bharo</button>
+  </div>
+  <button class="calc-fab" id="calc-fab" title="Calculator">🧮</button>
+</div>
+
+<script>
+/* =====================================================================
+   1) FIREBASE SETUP
+   Apna Firebase project banaakar yahaan uska config paste karo.
+   Ditel README.md mein hai.
+   ===================================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAE5PF483T9XNjT34vz3SERYlPPUeD7R90",
+  authDomain: "lekha-jokha-e5541.firebaseapp.com",
+  projectId: "lekha-jokha-e5541",
+  storageBucket: "lekha-jokha-e5541.firebasestorage.app",
+  messagingSenderId: "220988205333",
+  appId: "1:220988205333:web:cd15e6688d9d26f02b211c"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* =====================================================================
+   2) STATE
+   ===================================================================== */
+let currentUser = null;
+let currentName = "";
+let entries = [];
+let isSignupMode = false;
+let addWho = "me"; // "me" or "friend"
+let unsubscribeEntries = null;
+
+/* =====================================================================
+   3) AUTH SCREEN LOGIC
+   ===================================================================== */
+const el = (id) => document.getElementById(id);
+
+el("switch-btn").addEventListener("click", () => {
+  isSignupMode = !isSignupMode;
+  el("signup-fields").classList.toggle("hidden", !isSignupMode);
+  el("auth-submit").textContent = isSignupMode ? "Account banao" : "Login karo";
+  el("switch-text").textContent = isSignupMode ? "Pehle se khaata hai?" : "Khaata nahin hai?";
+  el("switch-btn").textContent = isSignupMode ? "Login karo" : "Naya account banao";
+  el("auth-error").classList.add("hidden");
+});
+
+el("auth-submit").addEventListener("click", async () => {
+  const email = el("auth-email").value.trim();
+  const pass = el("auth-pass").value;
+  const name = el("display-name").value.trim();
+  el("auth-error").classList.add("hidden");
+
+  if (!email || !pass) {
+    showAuthError("Email aur password dono bharo.");
+    return;
+  }
+  try {
+    if (isSignupMode) {
+      if (!name) { showAuthError("Apna naam likho, taaki dusra vyakti tumhen pehchaan sake."); return; }
+      const cred = await auth.createUserWithEmailAndPassword(email, pass);
+      await cred.user.updateProfile({ displayName: name });
+      await db.collection("users").doc(cred.user.uid).set({ name, email });
+    } else {
+      await auth.signInWithEmailAndPassword(email, pass);
+    }
+  } catch (err) {
+    showAuthError(friendlyAuthError(err));
+  }
+});
+
+function showAuthError(msg) {
+  el("auth-error").textContent = msg;
+  el("auth-error").classList.remove("hidden");
+}
+
+function friendlyAuthError(err) {
+  const map = {
+    "auth/email-already-in-use": "Ye email pehle se registered hai — login karo.",
+    "auth/invalid-email": "Email sahi format mein nahin hai.",
+    "auth/weak-password": "Password kam se kam 6 letter ka hona chahiye.",
+    "auth/wrong-password": "Password galat hai.",
+    "auth/user-not-found": "Ye email kisi account se judi nahin hai.",
+    "auth/invalid-credential": "Email ya password galat hai."
+  };
+  return map[err.code] || ("Kuchh gadbad ho gayi: " + err.message);
+}
+
+el("logout-btn").addEventListener("click", () => auth.signOut());
+
+/* =====================================================================
+   4) AUTH STATE -> SWITCH SCREENS
+   ===================================================================== */
+auth.onAuthStateChanged(async (user) => {
+  if (unsubscribeEntries) { unsubscribeEntries(); unsubscribeEntries = null; }
+
+  if (user) {
+    currentUser = user;
+    const userDoc = await db.collection("users").doc(user.uid).get();
+    currentName = (userDoc.exists && userDoc.data().name) || user.displayName || "Main";
+
+    el("auth-screen").classList.add("hidden");
+    el("app").classList.remove("hidden");
+    el("who-line").textContent = "Logged in: " + currentName;
+    el("entry-date").value = new Date().toISOString().slice(0,10);
+
+    listenToEntries();
+  } else {
+    currentUser = null;
+    el("app").classList.add("hidden");
+    el("auth-screen").classList.remove("hidden");
+  }
+});
+
+/* =====================================================================
+   5) LEDGER: LISTEN, RENDER, ADD, DELETE
+   ===================================================================== */
+function listenToEntries() {
+  unsubscribeEntries = db.collection("entries")
+    .orderBy("date", "desc")
+    .orderBy("createdAt", "desc")
+    .onSnapshot((snap) => {
+      entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderEntries();
+      renderBalance();
+    }, (err) => {
+      console.error(err);
+      el("entries-list").innerHTML = '<div class="empty">Data load nahin ho paaya. Firestore rules aur config check karo (README dekho).</div>';
+    });
+}
+
+function renderEntries() {
+  const list = el("entries-list");
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="empty">Abhi koi entry nahin hai. Pehli entry upar se jodo.</div>';
+    return;
+  }
+  list.innerHTML = entries.map(e => {
+    const mine = e.createdBy === currentUser.uid;
+    const whoClass = e.who === "me_of_creator" ? "" : "";
+    // "who" stores who GAVE the money from the creator's point of view: "self" or "other"
+    const gaveIsCreator = e.who === "self";
+    const dotClass = gaveIsCreator ? (mine ? "me" : "friend") : (mine ? "friend" : "me");
+    const amtClass = dotClass;
+    const giverName = gaveIsCreator ? e.createdByName : otherName(e.createdByName);
+    return `
+      <div class="entry">
+        <div class="who-dot ${dotClass}"></div>
+        <div class="body">
+          <div class="top-line">
+            <span class="who-name">${escapeHtml(giverName)} ne diye</span>
+            <span class="amt ${amtClass} num">₹${Number(e.amount).toLocaleString('en-IN')}</span>
+          </div>
+          ${e.note ? `<div class="note">${escapeHtml(e.note)}</div>` : ""}
+          <div class="date num">${formatDate(e.date)}</div>
+          ${mine ? `<button class="del" data-id="${e.id}">Hatao</button>` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  list.querySelectorAll(".del").forEach(btn => {
+    btn.addEventListener("click", () => deleteEntry(btn.dataset.id));
+  });
+}
+
+function otherName(creatorName) {
+  return "Dusra"; // display-only fallback; balance math doesn't depend on this
+}
+
+function renderBalance() {
+  // "self" entries = money the entry's creator gave.
+  // We sum from OUR (currentUser) point of view:
+  //   moneyIGave   = entries where (creator == me AND who == self) OR (creator != me AND who == other)
+  //   moneyTheyGave= entries where (creator == me AND who == other) OR (creator != me AND who == self)
+  let iGave = 0, theyGave = 0;
+  entries.forEach(e => {
+    const mine = e.createdBy === currentUser.uid;
+    const creatorGave = e.who === "self";
+    const iAmGiver = (mine && creatorGave) || (!mine && !creatorGave);
+    if (iAmGiver) iGave += Number(e.amount) || 0;
+    else theyGave += Number(e.amount) || 0;
+  });
+  const net = iGave - theyGave;
+  const fig = el("balance-figure");
+  const sub = el("balance-sub");
+  if (Math.abs(net) < 0.005) {
+    fig.textContent = "Hisaab barabar hai";
+    fig.className = "figure settled";
+    sub.textContent = "";
+  } else if (net > 0) {
+    fig.textContent = "₹" + net.toLocaleString('en-IN', {maximumFractionDigits:2});
+    fig.className = "figure owe-me num";
+    sub.textContent = "Dost ko tumhen dene hain";
+  } else {
+    fig.textContent = "₹" + Math.abs(net).toLocaleString('en-IN', {maximumFractionDigits:2});
+    fig.className = "figure owe-friend num";
+    sub.textContent = "Tumhen dost ko dene hain";
+  }
+}
+
+el("who-toggle").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-who]");
+  if (!btn) return;
+  addWho = btn.dataset.who;
+  el("who-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+});
+// default active state
+el("who-toggle").querySelector('[data-who="me"]').classList.add("active");
+
+el("add-entry-btn").addEventListener("click", async () => {
+  const amount = parseFloat(el("entry-amount").value);
+  const date = el("entry-date").value;
+  const note = el("entry-note").value.trim();
+
+  if (!amount || amount <= 0) { alert("Sahi amount daalo."); return; }
+  if (!date) { alert("Date chuno."); return; }
+
+  try {
+    await db.collection("entries").add({
+      amount,
+      date,
+      note,
+      who: addWho === "me" ? "self" : "other", // from the CREATOR's perspective
+      createdBy: currentUser.uid,
+      createdByName: currentName,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    el("entry-amount").value = "";
+    el("entry-note").value = "";
+  } catch (err) {
+    alert("Entry save nahin ho payi: " + err.message);
+  }
+});
+
+async function deleteEntry(id) {
+  if (!confirm("Ye entry hataani hai?")) return;
+  try {
+    await db.collection("entries").doc(id).delete();
+  } catch (err) {
+    alert("Hata nahin paaye: " + err.message);
+  }
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =====================================================================
+   6) CALCULATOR (standalone, purely client-side — no data involved)
+   ===================================================================== */
+const calcKeys = ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","⌫","+","C","="];
+let calcExpr = "";
+
+function buildCalc() {
+  const grid = el("calc-grid");
+  grid.innerHTML = "";
+  calcKeys.forEach(k => {
+    const b = document.createElement("button");
+    b.textContent = k;
+    if (["÷","×","−","+"].includes(k)) b.classList.add("op");
+    if (k === "=") b.classList.add("eq");
+    b.addEventListener("click", () => calcPress(k));
+    grid.appendChild(b);
+  });
+}
+function calcPress(k) {
+  if (k === "C") { calcExpr = ""; }
+  else if (k === "⌫") { calcExpr = calcExpr.slice(0, -1); }
+  else if (k === "=") {
+    try {
+      const safe = calcExpr.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-");
+      if (!/^[0-9+\-*/.() ]*$/.test(safe)) throw new Error("bad");
+      const result = Function('"use strict"; return (' + safe + ')')();
+      calcExpr = String(Math.round((result + Number.EPSILON) * 100) / 100);
+    } catch { calcExpr = "Error"; }
+  } else {
+    calcExpr += k;
+  }
+  el("calc-screen").textContent = calcExpr || "0";
+}
+buildCalc();
+
+el("calc-fab").addEventListener("click", () => {
+  el("calc-panel").classList.toggle("hidden");
+});
+el("open-calc-from-form").addEventListener("click", () => {
+  el("calc-panel").classList.remove("hidden");
+});
+el("calc-use-btn").addEventListener("click", () => {
+  const val = parseFloat(calcExpr);
+  if (!isNaN(val)) {
+    el("entry-amount").value = Math.abs(val);
+  }
+  el("calc-panel").classList.add("hidden");
+});
+
+// PWA: service worker register (app install hone ke liye zaroori)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
