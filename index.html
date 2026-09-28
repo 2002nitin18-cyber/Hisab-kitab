@@ -101,6 +101,9 @@
   .btn.secondary:hover{ background: var(--paper); }
   .switcher{ text-align:center; margin-top:14px; font-size:.85rem; color:var(--ink-soft);}
   .switcher button{ background:none;border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem;}
+  .auth-info{ background:#E7F1E4; border:1px solid #B5CFAE; color:var(--me); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
+  .forgot-row{ text-align:right; margin:-6px 0 14px; }
+  .forgot-row button{ background:none; border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.82rem; padding:0; }
   .auth-error{ background:#FBEAE8; border:1px solid #E7B9B2; color:var(--danger); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
 
   /* ---------- Add entry ---------- */
@@ -193,6 +196,7 @@
     <p class="tag">Tumhaare aur tumhaare dost ke beech ka saanjha hisaab-kitaab.</p>
 
     <div id="auth-error" class="auth-error hidden"></div>
+    <div id="auth-info" class="auth-info hidden"></div>
 
     <div id="signup-fields" class="hidden">
       <div class="field">
@@ -208,6 +212,10 @@
     <div class="field">
       <label for="auth-pass">Password</label>
       <input id="auth-pass" type="password" placeholder="kam se kam 6 letter" autocomplete="current-password" />
+    </div>
+
+    <div class="forgot-row" id="forgot-row">
+      <button type="button" id="forgot-btn">Password bhool gaye?</button>
     </div>
 
     <button class="btn" id="auth-submit">Login karo</button>
@@ -263,7 +271,7 @@
 </div>
 
 <!-- Calculator floating widget -->
-<div class="calc-drawer">
+<div class="calc-drawer hidden" id="calc-drawer">
   <div id="calc-panel" class="calc-panel hidden">
     <div class="screen" id="calc-screen">0</div>
     <div class="calc-grid" id="calc-grid"></div>
@@ -313,6 +321,25 @@ el("switch-btn").addEventListener("click", () => {
   el("switch-text").textContent = isSignupMode ? "Pehle se khaata hai?" : "Khaata nahin hai?";
   el("switch-btn").textContent = isSignupMode ? "Login karo" : "Naya account banao";
   el("auth-error").classList.add("hidden");
+  el("auth-info").classList.add("hidden");
+  el("forgot-row").classList.toggle("hidden", isSignupMode);
+});
+
+el("forgot-btn").addEventListener("click", async () => {
+  const email = el("auth-email").value.trim();
+  el("auth-error").classList.add("hidden");
+  el("auth-info").classList.add("hidden");
+  if (!email) {
+    showAuthError("Pehle upar apna email likho, phir 'Password bhool gaye?' dabao.");
+    return;
+  }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    el("auth-info").textContent = "Reset link bhej diya hai. Apna email kholo (Spam folder bhi dekho), link par dabao aur naya password banao.";
+    el("auth-info").classList.remove("hidden");
+  } catch (err) {
+    showAuthError(friendlyAuthError(err));
+  }
 });
 
 el("auth-submit").addEventListener("click", async () => {
@@ -351,7 +378,8 @@ function friendlyAuthError(err) {
     "auth/weak-password": "Password kam se kam 6 letter ka hona chahiye.",
     "auth/wrong-password": "Password galat hai.",
     "auth/user-not-found": "Ye email kisi account se judi nahin hai.",
-    "auth/invalid-credential": "Email ya password galat hai."
+    "auth/invalid-credential": "Email ya password galat hai.",
+    "auth/too-many-requests": "Bahut baar koshish ho gayi. Thodi der ruk kar dobara try karo."
   };
   return map[err.code] || ("Kuchh gadbad ho gayi: " + err.message);
 }
@@ -371,6 +399,7 @@ auth.onAuthStateChanged(async (user) => {
 
     el("auth-screen").classList.add("hidden");
     el("app").classList.remove("hidden");
+    el("calc-drawer").classList.remove("hidden");
     el("who-line").textContent = "Logged in: " + currentName;
     el("entry-date").value = new Date().toISOString().slice(0,10);
 
@@ -378,6 +407,8 @@ auth.onAuthStateChanged(async (user) => {
   } else {
     currentUser = null;
     el("app").classList.add("hidden");
+    el("calc-drawer").classList.add("hidden");
+    el("calc-panel").classList.add("hidden");
     el("auth-screen").classList.remove("hidden");
   }
 });
