@@ -103,6 +103,15 @@
   .switcher button{ background:none;border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem;}
   .splash{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--paper); z-index:100; }
   .splash h1{ font-size:1.6rem; margin:0; color:var(--ink); }
+  .install-banner{
+    position:fixed; left:10px; right:10px; top:calc(env(safe-area-inset-top, 0px) + 10px); z-index:90;
+    display:flex; align-items:center; gap:10px;
+    background:var(--ink); color:#fff; padding:10px 10px 10px 14px; border-radius:var(--radius);
+    box-shadow:0 3px 10px rgba(0,0,0,.25); max-width:520px; margin:0 auto;
+  }
+  .install-banner .txt{ flex:1; font-size:.85rem; line-height:1.35; }
+  .install-banner .ib-primary{ background:var(--brass); color:#fff; border:none; padding:8px 12px; border-radius:var(--radius); font-weight:600; font-size:.85rem; cursor:pointer; }
+  .install-banner .ib-close{ background:none; border:none; color:#cfd8cc; font-size:1rem; cursor:pointer; padding:4px 6px; }
   .pass-wrap{ position:relative; }
   .pass-wrap input{ padding-right:46px; }
   .eye-btn{
@@ -201,6 +210,11 @@
 <body>
 
 <!-- ===================== AUTH SCREEN ===================== -->
+<div id="install-banner" class="install-banner hidden">
+  <div class="txt" id="install-text">Is app ko phone mein install karo.</div>
+  <button type="button" class="ib-primary" id="install-btn">Install karo</button>
+  <button type="button" class="ib-close" id="install-dismiss" aria-label="Band karo">✕</button>
+</div>
 <div id="splash" class="splash"><h1>Hisaab Khata</h1></div>
 <div id="auth-screen" class="auth-wrap hidden">
   <div class="auth-card">
@@ -667,6 +681,46 @@ el("calc-use-btn").addEventListener("click", () => {
   }
   el("calc-panel").classList.add("hidden");
 });
+
+/* =====================================================================
+   7) INSTALL BUTTON (Android Chrome: link kholte hi "Install karo" dikhta hai)
+   ===================================================================== */
+let deferredInstall = null;
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+function installDismissed() {
+  try { return localStorage.getItem("hk_install_dismissed") === "1"; } catch (e) { return false; }
+}
+function showInstallBanner(text, withButton) {
+  if (isStandalone || installDismissed()) return;
+  el("install-text").textContent = text;
+  el("install-btn").classList.toggle("hidden", !withButton);
+  el("install-banner").classList.remove("hidden");
+}
+function hideInstallBanner() { el("install-banner").classList.add("hidden"); }
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstall = e;
+  showInstallBanner("Is app ko phone mein install karo, seedha home screen se khulega.", true);
+});
+window.addEventListener("appinstalled", () => { deferredInstall = null; hideInstallBanner(); });
+
+el("install-btn").addEventListener("click", async () => {
+  if (!deferredInstall) return;
+  deferredInstall.prompt();
+  try { await deferredInstall.userChoice; } catch (e) {}
+  deferredInstall = null;
+  hideInstallBanner();
+});
+el("install-dismiss").addEventListener("click", () => {
+  hideInstallBanner();
+  try { localStorage.setItem("hk_install_dismissed", "1"); } catch (e) {}
+});
+
+// iPhone par install ka automatic button nahin milta, isliye sirf tarika bataate hain
+if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  showInstallBanner("Install karne ke liye Safari mein Share dabao, phir 'Add to Home Screen' chuno.", false);
+}
 
 // PWA: service worker register (app install hone ke liye zaroori)
 if ("serviceWorker" in navigator) {
