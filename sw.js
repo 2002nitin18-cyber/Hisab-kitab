@@ -1,6 +1,7 @@
-// Simple service worker: app ki files cache karta hai taaki app jaldi khule.
-// Firebase ka data (entries) hamesha network se aata hai, cache nahin hota.
-const CACHE = "hisaab-v1";
+// Service worker: app ki files phone mein rakhta hai taaki app turant khule.
+// Files cache se turant aati hain aur peeche se apne aap update hoti rehti hain.
+// Firebase ka data (entries) alag se Firebase hi sambhalta hai.
+const CACHE = "hisaab-v2";
 const FILES = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -19,15 +20,19 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  // Sirf apni hi site ki files cache se do; baaki (Firebase, fonts) seedha network se
-  if (url.origin !== self.location.origin) return;
+  if (e.request.method !== "GET" || url.origin !== self.location.origin) return;
   e.respondWith(
-    fetch(e.request)
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(e.request))
+    caches.match(e.request).then((cached) => {
+      const network = fetch(e.request)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(e.request, copy));
+          }
+          return res;
+        })
+        .catch(() => cached);
+      return cached || network;
+    })
   );
 });

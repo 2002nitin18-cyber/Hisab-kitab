@@ -101,6 +101,17 @@
   .btn.secondary:hover{ background: var(--paper); }
   .switcher{ text-align:center; margin-top:14px; font-size:.85rem; color:var(--ink-soft);}
   .switcher button{ background:none;border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem;}
+  .splash{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--paper); z-index:100; }
+  .splash h1{ font-size:1.6rem; margin:0; color:var(--ink); }
+  .pass-wrap{ position:relative; }
+  .pass-wrap input{ padding-right:46px; }
+  .eye-btn{
+    position:absolute; right:0; top:0; height:100%; width:44px;
+    background:none; border:none; cursor:pointer; color:var(--ink-soft);
+    display:flex; align-items:center; justify-content:center; padding:0;
+  }
+  .eye-btn:hover{ color:var(--ink); }
+  .eye-btn svg{ width:20px; height:20px; }
   .auth-info{ background:#E7F1E4; border:1px solid #B5CFAE; color:var(--me); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
   .forgot-row{ text-align:right; margin:-6px 0 14px; }
   .forgot-row button{ background:none; border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.82rem; padding:0; }
@@ -190,7 +201,8 @@
 <body>
 
 <!-- ===================== AUTH SCREEN ===================== -->
-<div id="auth-screen" class="auth-wrap">
+<div id="splash" class="splash"><h1>Hisaab Khata</h1></div>
+<div id="auth-screen" class="auth-wrap hidden">
   <div class="auth-card">
     <h1>Hisaab Khata</h1>
     <p class="tag">Tumhaare aur tumhaare dost ke beech ka saanjha hisaab-kitaab.</p>
@@ -211,7 +223,10 @@
     </div>
     <div class="field">
       <label for="auth-pass">Password</label>
-      <input id="auth-pass" type="password" placeholder="kam se kam 6 letter" autocomplete="current-password" />
+      <div class="pass-wrap">
+        <input id="auth-pass" type="password" placeholder="kam se kam 6 letter" autocomplete="current-password" />
+        <button type="button" class="eye-btn" id="eye-btn" aria-label="Password dikhao" aria-pressed="false"></button>
+      </div>
     </div>
 
     <div class="forgot-row" id="forgot-row">
@@ -282,6 +297,33 @@
 
 <script>
 /* =====================================================================
+   0) FAST START — pehle se login ho to seedha entry page dikhao
+   (Firebase ka jawab aane ka intezaar nahin karte)
+   ===================================================================== */
+const el = (id) => document.getElementById(id);
+const SESSION_KEY = "hk_session";
+function readSession() {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch (e) { return null; }
+}
+function saveSession(v) {
+  try {
+    if (v) localStorage.setItem(SESSION_KEY, JSON.stringify(v));
+    else localStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+}
+const cachedSession = readSession();
+el("splash").classList.add("hidden");
+if (cachedSession) {
+  el("app").classList.remove("hidden");
+  el("calc-drawer").classList.remove("hidden");
+  el("who-line").textContent = "Logged in: " + (cachedSession.name || "");
+  el("entry-date").value = new Date().toISOString().slice(0, 10);
+  el("entries-list").innerHTML = '<div class="empty">Load ho raha hai...</div>';
+} else {
+  el("auth-screen").classList.remove("hidden");
+}
+
+/* =====================================================================
    1) FIREBASE SETUP
    Apna Firebase project banaakar yahaan uska config paste karo.
    Ditel README.md mein hai.
@@ -298,6 +340,8 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+// Pichli entries phone mein save rakho, taaki app khulte hi turant dikhein
+db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 /* =====================================================================
    2) STATE
@@ -312,8 +356,6 @@ let unsubscribeEntries = null;
 /* =====================================================================
    3) AUTH SCREEN LOGIC
    ===================================================================== */
-const el = (id) => document.getElementById(id);
-
 el("switch-btn").addEventListener("click", () => {
   isSignupMode = !isSignupMode;
   el("signup-fields").classList.toggle("hidden", !isSignupMode);
@@ -357,6 +399,9 @@ el("auth-submit").addEventListener("click", async () => {
       if (!name) { showAuthError("Apna naam likho, taaki dusra vyakti tumhen pehchaan sake."); return; }
       const cred = await auth.createUserWithEmailAndPassword(email, pass);
       await cred.user.updateProfile({ displayName: name });
+      currentName = name;
+      saveSession({ name });
+      el("who-line").textContent = "Logged in: " + name;
       await db.collection("users").doc(cred.user.uid).set({ name, email });
     } else {
       await auth.signInWithEmailAndPassword(email, pass);
@@ -384,28 +429,45 @@ function friendlyAuthError(err) {
   return map[err.code] || ("Kuchh gadbad ho gayi: " + err.message);
 }
 
-el("logout-btn").addEventListener("click", () => auth.signOut());
+// Password dikhao / chhupao (aankh wala button)
+const EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.9 10.9 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+function setPasswordVisible(visible) {
+  el("auth-pass").type = visible ? "text" : "password";
+  el("eye-btn").innerHTML = visible ? EYE_OFF : EYE_OPEN;
+  el("eye-btn").setAttribute("aria-pressed", visible ? "true" : "false");
+  el("eye-btn").setAttribute("aria-label", visible ? "Password chhupao" : "Password dikhao");
+}
+setPasswordVisible(false);
+el("eye-btn").addEventListener("click", () => {
+  setPasswordVisible(el("auth-pass").type === "password");
+});
+
+el("logout-btn").addEventListener("click", () => { setPasswordVisible(false); auth.signOut(); });
 
 /* =====================================================================
    4) AUTH STATE -> SWITCH SCREENS
    ===================================================================== */
-auth.onAuthStateChanged(async (user) => {
+auth.onAuthStateChanged((user) => {
   if (unsubscribeEntries) { unsubscribeEntries(); unsubscribeEntries = null; }
 
   if (user) {
     currentUser = user;
-    const userDoc = await db.collection("users").doc(user.uid).get();
-    currentName = (userDoc.exists && userDoc.data().name) || user.displayName || "Main";
+    currentName = user.displayName || currentName || (cachedSession && cachedSession.name) || "Main";
+    saveSession({ name: currentName });
 
+    el("splash").classList.add("hidden");
     el("auth-screen").classList.add("hidden");
     el("app").classList.remove("hidden");
     el("calc-drawer").classList.remove("hidden");
     el("who-line").textContent = "Logged in: " + currentName;
-    el("entry-date").value = new Date().toISOString().slice(0,10);
+    if (!el("entry-date").value) el("entry-date").value = new Date().toISOString().slice(0,10);
 
     listenToEntries();
   } else {
     currentUser = null;
+    saveSession(null);
+    el("splash").classList.add("hidden");
     el("app").classList.add("hidden");
     el("calc-drawer").classList.add("hidden");
     el("calc-panel").classList.add("hidden");
