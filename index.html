@@ -16,217 +16,181 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<!-- Firebase (compat build, loaded from Google's CDN — required for auth + the shared ledger to sync between both phones) -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
 <style>
   :root{
-    --paper: #E9EFE4;
-    --paper-line: #C9D6C0;
-    --sheet: #FBFCF8;
-    --ink: #212B22;
-    --ink-soft: #5B6B58;
-    --brass: #A8783A;
-    --brass-deep: #8A6229;
-    --me: #2F5233;
-    --friend: #8B4A3D;
-    --danger: #B23A2E;
-    --radius: 3px;
+    --paper:#E9EFE4; --paper-line:#C9D6C0; --sheet:#FBFCF8;
+    --ink:#212B22; --ink-soft:#5B6B58;
+    --brass:#A8783A; --brass-deep:#8A6229;
+    --me:#2F5233; --friend:#8B4A3D; --danger:#B23A2E;
+    --radius:3px;
     color-scheme: light;
+    box-sizing:border-box;
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
   *{box-sizing:border-box;}
-  html,body{margin:0; height:100%;}
+  html,body{margin:0; min-height:100%;}
   body{
-    background: var(--paper);
-    background-image:
-      repeating-linear-gradient(var(--paper) 0 27px, var(--paper-line) 27px 28px);
-    color: var(--ink);
-    font-family:'Inter', sans-serif;
-    -webkit-font-smoothing: antialiased;
+    background:var(--paper);
+    background-image:repeating-linear-gradient(var(--paper) 0 27px, var(--paper-line) 27px 28px);
+    color:var(--ink); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
   }
-  h1,h2,h3, .display{ font-family:'Lora', serif; }
-  .num{ font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+  h1,h2,h3,.display{ font-family:'Lora',serif; }
+  .num{ font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums; }
+  .hidden{ display:none !important; }
 
-  #app{ max-width: 760px; margin: 0 auto; padding: 22px 16px 90px; }
+  #app{ max-width:760px; margin:0 auto; padding:22px 16px 110px; }
 
-  /* ---------- Header ---------- */
-  .masthead{
-    display:flex; align-items:baseline; justify-content:space-between;
-    border-bottom: 3px double var(--ink);
-    padding-bottom: 10px; margin-bottom: 18px;
-  }
-  .masthead h1{ font-size: 1.5rem; font-weight:700; margin:0; letter-spacing:.2px;}
+  .masthead{ display:flex; align-items:baseline; justify-content:space-between; border-bottom:3px double var(--ink); padding-bottom:10px; margin-bottom:18px; }
+  .masthead h1{ font-size:1.5rem; font-weight:700; margin:0; }
   .masthead .who{ font-size:.8rem; color:var(--ink-soft); }
-  .masthead button{ background:none;border:none; font-size:.78rem; color:var(--ink-soft); text-decoration:underline; cursor:pointer; padding:0;}
+  .linkbtn{ background:none; border:none; font-size:.85rem; color:var(--ink-soft); text-decoration:underline; cursor:pointer; padding:0; font-family:'Inter',sans-serif; }
+  .linkbtn:hover{ color:var(--ink); }
+  .linkbtn.danger:hover{ color:var(--danger); }
 
-  /* ---------- Balance hero ---------- */
-  .balance-block{ margin: 6px 0 26px; }
-  .balance-block .label{ font-size:.85rem; color:var(--ink-soft); margin-bottom:2px;}
-  .balance-block .figure{ font-size: 2.5rem; font-weight:700; line-height:1.05; }
-  .balance-block .figure.owe-me{ color: var(--me); }
-  .balance-block .figure.owe-friend{ color: var(--friend); }
-  .balance-block .figure.settled{ color: var(--ink); }
-  .balance-block .sub{ font-size:.85rem; color:var(--ink-soft); margin-top:4px; }
+  .section-title{ font-size:1.05rem; font-weight:600; margin:26px 0 8px; }
+  .home-title{ margin-top:6px; }
 
-  /* ---------- Auth screen ---------- */
-  .auth-wrap{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px;}
-  .auth-card{
-    background:var(--sheet); border:1px solid var(--paper-line);
-    padding:28px 24px; width:100%; max-width:360px;
-    box-shadow: 0 1px 0 var(--paper-line);
-  }
-  .auth-card h1{ font-size:1.6rem; margin:0 0 4px;}
-  .auth-card p.tag{ color:var(--ink-soft); font-size:.85rem; margin:0 0 22px;}
-  .field{ margin-bottom:14px; }
-  .field label{ display:block; font-size:.75rem; color:var(--ink-soft); margin-bottom:4px;}
-  .field input, .field select{
-    width:100%; padding:10px 11px; font-size:.95rem;
-    border:1px solid var(--paper-line); background:#fff; color:var(--ink);
-    border-radius: var(--radius); font-family:'Inter',sans-serif;
-  }
-  .field input:focus, .field select:focus, button:focus-visible{
-    outline: 2px solid var(--brass); outline-offset:1px;
-  }
-  .btn{
-    display:inline-block; width:100%; padding:11px; font-size:.95rem; font-weight:600;
-    background: var(--ink); color:#fff; border:none; border-radius:var(--radius);
-    cursor:pointer;
-  }
+  /* ---------- Buttons / fields ---------- */
+  .btn{ display:inline-block; width:100%; padding:11px; font-size:.95rem; font-weight:600; background:var(--ink); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; font-family:'Inter',sans-serif; }
   .btn:hover{ background:#0f150f; }
   .btn.secondary{ background:transparent; color:var(--ink); border:1px solid var(--ink); }
-  .btn.secondary:hover{ background: var(--paper); }
-  .switcher{ text-align:center; margin-top:14px; font-size:.85rem; color:var(--ink-soft);}
-  .switcher button{ background:none;border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem;}
+  .btn.secondary:hover{ background:var(--paper); }
+  .btn.small{ width:auto; padding:7px 12px; font-size:.82rem; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible{ outline:2px solid var(--brass); outline-offset:1px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:.75rem; color:var(--ink-soft); margin-bottom:4px; }
+  .field input{ width:100%; padding:10px 11px; font-size:.95rem; border:1px solid var(--paper-line); background:#fff; color:var(--ink); border-radius:var(--radius); font-family:'Inter',sans-serif; }
+
+  /* ---------- Auth ---------- */
+  .auth-wrap{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+  .auth-card{ background:var(--sheet); border:1px solid var(--paper-line); padding:28px 24px; width:100%; max-width:360px; box-shadow:0 1px 0 var(--paper-line); }
+  .auth-card h1{ font-size:1.6rem; margin:0 0 4px; }
+  .auth-card p.tag{ color:var(--ink-soft); font-size:.85rem; margin:0 0 22px; }
+  .switcher{ text-align:center; margin-top:14px; font-size:.85rem; color:var(--ink-soft); }
+  .switcher button{ background:none; border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.85rem; }
+  .auth-error{ background:#FBEAE8; border:1px solid #E7B9B2; color:var(--danger); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius); }
+  .auth-info{ background:#E7F1E4; border:1px solid #B5CFAE; color:var(--me); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius); }
+  .pass-wrap{ position:relative; }
+  .pass-wrap input{ padding-right:46px; }
+  .eye-btn{ position:absolute; right:0; top:0; height:100%; width:44px; background:none; border:none; cursor:pointer; color:var(--ink-soft); display:flex; align-items:center; justify-content:center; padding:0; }
+  .eye-btn:hover{ color:var(--ink); }
+  .eye-btn svg{ width:20px; height:20px; }
+  .forgot-row{ text-align:right; margin:-6px 0 14px; }
+  .forgot-row button{ background:none; border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.82rem; padding:0; }
+
   .splash{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--paper); z-index:100; }
   .splash h1{ font-size:1.6rem; margin:0; color:var(--ink); }
-  .install-banner{
-    position:fixed; left:10px; right:10px; top:calc(env(safe-area-inset-top, 0px) + 10px); z-index:90;
-    display:flex; align-items:center; gap:10px;
-    background:var(--ink); color:#fff; padding:10px 10px 10px 14px; border-radius:var(--radius);
-    box-shadow:0 3px 10px rgba(0,0,0,.25); max-width:520px; margin:0 auto;
-  }
+  .install-banner{ position:fixed; left:10px; right:10px; top:calc(env(safe-area-inset-top, 0px) + 10px); z-index:90; display:flex; align-items:center; gap:10px; background:var(--ink); color:#fff; padding:10px 10px 10px 14px; border-radius:var(--radius); box-shadow:0 3px 10px rgba(0,0,0,.25); max-width:520px; margin:0 auto; }
   .install-banner .txt{ flex:1; font-size:.85rem; line-height:1.35; }
   .install-banner .ib-primary{ background:var(--brass); color:#fff; border:none; padding:8px 12px; border-radius:var(--radius); font-weight:600; font-size:.85rem; cursor:pointer; }
   .install-banner .ib-close{ background:none; border:none; color:#cfd8cc; font-size:1rem; cursor:pointer; padding:4px 6px; }
-  .pass-wrap{ position:relative; }
-  .pass-wrap input{ padding-right:46px; }
-  .eye-btn{
-    position:absolute; right:0; top:0; height:100%; width:44px;
-    background:none; border:none; cursor:pointer; color:var(--ink-soft);
-    display:flex; align-items:center; justify-content:center; padding:0;
-  }
-  .eye-btn:hover{ color:var(--ink); }
-  .eye-btn svg{ width:20px; height:20px; }
-  .auth-info{ background:#E7F1E4; border:1px solid #B5CFAE; color:var(--me); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
-  .forgot-row{ text-align:right; margin:-6px 0 14px; }
-  .forgot-row button{ background:none; border:none; color:var(--brass-deep); text-decoration:underline; cursor:pointer; font-size:.82rem; padding:0; }
-  .auth-error{ background:#FBEAE8; border:1px solid #E7B9B2; color:var(--danger); font-size:.82rem; padding:8px 10px; margin-bottom:14px; border-radius:var(--radius);}
 
-  /* ---------- Add entry ---------- */
-  .add-card{
-    background:var(--sheet); border:1px solid var(--paper-line); padding:16px;
-    margin-bottom: 22px;
-  }
-  .add-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;}
+  /* ---------- Home ---------- */
+  .group-card{ display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; background:var(--sheet); border:1px solid var(--paper-line); border-left:4px solid var(--brass); padding:14px 14px; margin-bottom:8px; cursor:pointer; font-family:'Inter',sans-serif; color:var(--ink); }
+  .group-card:hover{ border-color:var(--ink); }
+  .group-card .g-name{ font-family:'Lora',serif; font-size:1.05rem; font-weight:600; }
+  .group-card .g-open{ font-size:.8rem; color:var(--ink-soft); }
+  .home-actions{ display:flex; gap:10px; margin:16px 0; }
+  .empty{ text-align:center; color:var(--ink-soft); padding:30px 10px; font-size:.9rem; }
+
+  /* ---------- Group view ---------- */
+  .group-bar{ display:flex; align-items:baseline; gap:14px; margin-bottom:4px; }
+  .group-bar h2{ font-size:1.35rem; margin:0; font-weight:700; }
+  .invite-line{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:.82rem; color:var(--ink-soft); margin:6px 0 4px; }
+  .invite-line .code{ font-size:.95rem; color:var(--ink); font-weight:600; letter-spacing:1px; }
+
+  .balance-block{ margin:14px 0 6px; }
+  .balance-block .label{ font-size:.85rem; color:var(--ink-soft); margin-bottom:2px; }
+  .balance-block .figure{ font-size:2.4rem; font-weight:700; line-height:1.05; }
+  .balance-block .figure.owe-me{ color:var(--me); }
+  .balance-block .figure.owe-friend{ color:var(--friend); }
+  .balance-block .figure.settled{ color:var(--ink); font-size:1.6rem; }
+  .balance-block .sub{ font-size:.85rem; color:var(--ink-soft); margin-top:4px; }
+
+  .transfer{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px solid var(--paper-line); font-size:.92rem; }
+  .transfer .amt{ font-weight:600; }
+  .transfer.mine-pay .amt{ color:var(--friend); }
+  .transfer.mine-get .amt{ color:var(--me); }
+  .none-msg{ color:var(--ink-soft); font-size:.88rem; padding:10px 4px; }
+
+  .member-row{ padding:11px 4px; border-bottom:1px solid var(--paper-line); }
+  .member-row .top{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+  .member-row .m-name{ font-weight:600; font-size:.95rem; }
+  .member-row .m-net{ font-size:.92rem; font-weight:600; }
+  .member-row .m-net.plus{ color:var(--me); }
+  .member-row .m-net.minus{ color:var(--friend); }
+  .member-row .detail{ display:flex; gap:16px; flex-wrap:wrap; margin-top:3px; font-size:.78rem; color:var(--ink-soft); }
+
+  .add-card{ background:var(--sheet); border:1px solid var(--paper-line); padding:16px; margin:12px 0 22px; }
+  .add-row{ display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; }
   .add-row .grow{ flex:1 1 140px; }
-  .toggle-pair{ display:flex; border:1px solid var(--ink); border-radius:var(--radius); overflow:hidden; }
-  .toggle-pair button{
-    flex:1; padding:9px 6px; background:#fff; border:none; font-size:.82rem; font-weight:600;
-    color:var(--ink-soft); cursor:pointer; font-family:'Inter',sans-serif;
-  }
-  .toggle-pair button.active.me{ background:var(--me); color:#fff; }
-  .toggle-pair button.active.friend{ background:var(--friend); color:#fff; }
-  .add-card input, .add-card textarea{
-    width:100%; padding:9px 10px; border:1px solid var(--paper-line); border-radius:var(--radius);
-    font-size:.92rem; font-family:'Inter',sans-serif; background:#fff; color:var(--ink);
-  }
-  .add-card textarea{ resize:vertical; min-height:38px; font-family:'Inter',sans-serif; }
+  .add-card input[type=number], .add-card input[type=date], .add-card textarea{ width:100%; padding:9px 10px; border:1px solid var(--paper-line); border-radius:var(--radius); font-size:.92rem; font-family:'Inter',sans-serif; background:#fff; color:var(--ink); }
+  .add-card textarea{ resize:vertical; min-height:38px; }
   .amount-field{ position:relative; }
-  .amount-field input{ font-family:'IBM Plex Mono',monospace; padding-left:24px; font-size:1rem;}
-  .amount-field .rupee{ position:absolute; left:10px; top:9px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace;}
-  .calc-toggle{ background:none; border:1px solid var(--paper-line); border-radius:var(--radius); padding:8px 10px; cursor:pointer; font-size:.85rem; color:var(--ink-soft);}
-  .calc-toggle:hover{ border-color:var(--ink);}
+  .amount-field input{ font-family:'IBM Plex Mono',monospace !important; padding-left:24px !important; font-size:1rem !important; }
+  .amount-field .rupee{ position:absolute; left:10px; top:9px; color:var(--ink-soft); font-family:'IBM Plex Mono',monospace; }
+  .calc-toggle{ background:none; border:1px solid var(--paper-line); border-radius:var(--radius); padding:8px 10px; cursor:pointer; font-size:.85rem; color:var(--ink-soft); }
+  .calc-toggle:hover{ border-color:var(--ink); }
+  .split-label{ font-size:.78rem; color:var(--ink-soft); margin:2px 0 6px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+  .chip{ padding:7px 13px; border:1px solid var(--ink); background:#fff; color:var(--ink-soft); border-radius:999px; font-size:.85rem; cursor:pointer; font-family:'Inter',sans-serif; }
+  .chip.on{ background:var(--ink); color:#fff; }
+  .share-hint{ font-size:.82rem; color:var(--ink-soft); margin-bottom:12px; min-height:1.2em; }
+  .edit-note{ font-size:.82rem; color:var(--brass-deep); margin-bottom:10px; }
 
-  /* ---------- Ledger list ---------- */
-  .ledger-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
-  .ledger-head h2{ font-size:1rem; margin:0; font-weight:600;}
-  .empty{ text-align:center; color:var(--ink-soft); padding:40px 10px; font-size:.9rem;}
-  .entry{
-    display:flex; gap:12px; align-items:flex-start;
-    padding:12px 4px; border-bottom:1px solid var(--paper-line);
-  }
-  .entry .who-dot{ width:9px; height:9px; border-radius:50%; margin-top:6px; flex:none;}
-  .entry .who-dot.me{ background:var(--me); }
-  .entry .who-dot.friend{ background:var(--friend); }
-  .entry .body{ flex:1; min-width:0; }
+  .entry{ padding:12px 4px; border-bottom:1px solid var(--paper-line); }
   .entry .top-line{ display:flex; justify-content:space-between; gap:10px; }
-  .entry .who-name{ font-size:.82rem; color:var(--ink-soft); }
+  .entry .who-name{ font-size:.86rem; color:var(--ink); font-weight:500; }
   .entry .amt{ font-size:1.05rem; font-weight:600; }
-  .entry .amt.me{ color:var(--me); }
-  .entry .amt.friend{ color:var(--friend); }
-  .entry .note{ font-size:.88rem; color:var(--ink); margin-top:2px; word-break:break-word;}
-  .entry .date{ font-size:.75rem; color:var(--ink-soft); margin-top:3px; }
-  .entry .del{ background:none; border:none; color:var(--ink-soft); font-size:.75rem; text-decoration:underline; cursor:pointer; padding:0; margin-top:4px;}
-  .entry .del:hover{ color:var(--danger); }
+  .entry .note{ font-size:.88rem; margin-top:2px; word-break:break-word; }
+  .entry .meta{ font-size:.78rem; color:var(--ink-soft); margin-top:3px; }
+  .entry .mine-share{ font-size:.8rem; color:var(--ink); margin-top:3px; }
+  .entry .actions{ display:flex; gap:14px; margin-top:6px; }
+  .entry.settle .who-name{ color:var(--brass-deep); }
 
-  /* ---------- Calculator drawer ---------- */
-  .calc-drawer{
-    position:fixed; right:14px; bottom:14px; z-index:40;
-  }
-  .calc-fab{
-    width:52px;height:52px;border-radius:50%; background:var(--ink); color:#fff; border:none;
-    font-size:1.3rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25);
-  }
-  .calc-panel{
-    position:fixed; right:14px; bottom:76px; width:230px; background:var(--sheet);
-    border:1px solid var(--ink); border-radius:var(--radius); padding:10px; z-index:41;
-    box-shadow:0 4px 14px rgba(0,0,0,.2);
-  }
-  .calc-panel .screen{
-    font-family:'IBM Plex Mono',monospace; font-size:1.3rem; text-align:right;
-    background:#fff; border:1px solid var(--paper-line); padding:10px 8px; margin-bottom:8px;
-    overflow-x:auto; white-space:nowrap;
-  }
+  /* ---------- Calculator ---------- */
+  .calc-drawer{ position:fixed; right:14px; bottom:calc(env(safe-area-inset-bottom, 0px) + 14px); z-index:40; }
+  .calc-fab{ width:52px; height:52px; border-radius:50%; background:var(--ink); color:#fff; border:none; font-size:1.3rem; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+  .calc-panel{ position:fixed; right:14px; bottom:calc(env(safe-area-inset-bottom, 0px) + 76px); width:230px; background:var(--sheet); border:1px solid var(--ink); border-radius:var(--radius); padding:10px; z-index:41; box-shadow:0 4px 14px rgba(0,0,0,.2); }
+  .calc-panel .screen{ font-family:'IBM Plex Mono',monospace; font-size:1.3rem; text-align:right; background:#fff; border:1px solid var(--paper-line); padding:10px 8px; margin-bottom:8px; overflow-x:auto; white-space:nowrap; }
   .calc-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }
-  .calc-grid button{
-    padding:10px 0; font-size:.95rem; border:1px solid var(--paper-line); background:#fff;
-    border-radius:var(--radius); cursor:pointer; font-family:'IBM Plex Mono',monospace;
-  }
+  .calc-grid button{ padding:10px 0; font-size:.95rem; border:1px solid var(--paper-line); background:#fff; border-radius:var(--radius); cursor:pointer; font-family:'IBM Plex Mono',monospace; }
   .calc-grid button:hover{ background:var(--paper); }
   .calc-grid button.op{ color:var(--brass-deep); font-weight:600; }
-  .calc-grid button.eq{ background:var(--ink); color:#fff; grid-column: span 2; }
-  .calc-use{ width:100%; margin-top:8px; padding:8px; font-size:.8rem; background:var(--me); color:#fff; border:none; border-radius:var(--radius); cursor:pointer;}
+  .calc-grid button.eq{ background:var(--ink); color:#fff; grid-column:span 2; }
+  .calc-use{ width:100%; margin-top:8px; padding:8px; font-size:.8rem; background:var(--me); color:#fff; border:none; border-radius:var(--radius); cursor:pointer; }
 
-  .hidden{ display:none !important; }
-  @media (max-width:420px){
-    .balance-block .figure{ font-size:2.1rem; }
-  }
+  @media (max-width:420px){ .balance-block .figure{ font-size:2.1rem; } }
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
 
-<!-- ===================== AUTH SCREEN ===================== -->
 <div id="install-banner" class="install-banner hidden">
   <div class="txt" id="install-text">Is app ko phone mein install karo.</div>
   <button type="button" class="ib-primary" id="install-btn">Install karo</button>
   <button type="button" class="ib-close" id="install-dismiss" aria-label="Band karo">✕</button>
 </div>
 <div id="splash" class="splash"><h1>Hisaab Khata</h1></div>
+
+<!-- ===================== AUTH SCREEN ===================== -->
 <div id="auth-screen" class="auth-wrap hidden">
   <div class="auth-card">
     <h1>Hisaab Khata</h1>
-    <p class="tag">Tumhaare aur tumhaare dost ke beech ka saanjha hisaab-kitaab.</p>
+    <p class="tag">Doston ke saath saanjha kharch aur len-den ka hisaab.</p>
 
+    <div id="invite-hint" class="auth-info hidden">Tumhen ek khate ka invite mila hai. Login karo ya naya account banao, phir judne ka option aa jaayega.</div>
     <div id="auth-error" class="auth-error hidden"></div>
     <div id="auth-info" class="auth-info hidden"></div>
 
     <div id="signup-fields" class="hidden">
       <div class="field">
-        <label for="display-name">Tumhaara naam (jo dusre ko dikhega)</label>
+        <label for="display-name">Tumhaara naam (jo dosto ko dikhega)</label>
         <input id="display-name" type="text" placeholder="jaise: Rahul" />
       </div>
     </div>
@@ -263,43 +227,90 @@
       <h1>Hisaab Khata</h1>
       <div class="who" id="who-line"></div>
     </div>
-    <button id="logout-btn">Logout</button>
+    <button class="linkbtn" id="logout-btn">Logout</button>
   </div>
 
-  <div class="balance-block">
-    <div class="label">Abhi ka hisaab</div>
-    <div class="figure" id="balance-figure">—</div>
-    <div class="sub" id="balance-sub"></div>
+  <!-- ---------- HOME: khaaton ki list ---------- -->
+  <div id="home-view">
+    <div id="home-msg" class="auth-error hidden"></div>
+    <h2 class="section-title home-title">Tumhaare khate</h2>
+    <div id="groups-list"></div>
+
+    <div class="home-actions">
+      <button class="btn" id="new-group-btn">Naya khata banao</button>
+      <button class="btn secondary" id="join-group-btn">Code se judo</button>
+    </div>
+
+    <div id="new-group-form" class="add-card hidden">
+      <div class="field">
+        <label for="new-group-name">Khate ka naam</label>
+        <input id="new-group-name" type="text" maxlength="60" placeholder="jaise: Manali trip" />
+      </div>
+      <button class="btn" id="create-group-btn">Khata banao</button>
+    </div>
+
+    <div id="join-group-form" class="add-card hidden">
+      <div class="field">
+        <label for="join-code">Dost ka bheja hua code</label>
+        <input id="join-code" type="text" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="jaise: K7M2QX9P" />
+      </div>
+      <button class="btn" id="join-submit-btn">Khate mein judo</button>
+    </div>
   </div>
 
-  <div class="add-card">
-    <div class="add-row">
-      <div class="toggle-pair" id="who-toggle">
-        <button type="button" data-who="me" class="me">Maine diye</button>
-        <button type="button" data-who="friend" class="friend">Inhone diye</button>
+  <!-- ---------- GROUP: ek khata ---------- -->
+  <div id="group-view" class="hidden">
+    <div class="group-bar">
+      <button class="linkbtn" id="back-btn">Wapas</button>
+      <h2 id="group-title"></h2>
+    </div>
+    <div class="invite-line">
+      <span>Judne ka code</span>
+      <span class="code num" id="group-code">...</span>
+      <button class="btn secondary small" id="share-btn" type="button">Dosto ko bhejo</button>
+    </div>
+
+    <div class="balance-block">
+      <div class="label">Tumhaara hisaab</div>
+      <div class="figure num" id="my-figure">-</div>
+      <div class="sub" id="my-sub"></div>
+    </div>
+
+    <h3 class="section-title">Kaun kisko dega</h3>
+    <div id="transfers-list"></div>
+
+    <h3 class="section-title">Sabka hisaab</h3>
+    <div id="members-list"></div>
+
+    <h3 class="section-title">Nayi entry</h3>
+    <div class="add-card" id="entry-card">
+      <div id="edit-note" class="edit-note hidden">Tum ek purani entry badal rahe ho.</div>
+      <div class="add-row">
+        <div class="grow amount-field">
+          <span class="rupee">₹</span>
+          <input id="entry-amount" type="number" inputmode="decimal" step="0.01" placeholder="Tumne kitna kharch kiya?" />
+        </div>
+        <input id="entry-date" type="date" style="flex:1 1 140px;" />
+        <button type="button" class="calc-toggle" id="open-calc-from-form">🧮 Calculator</button>
+      </div>
+      <div class="add-row">
+        <textarea id="entry-note" rows="2" placeholder="Kis cheez ka? jaise: petrol, khaana, hotel..."></textarea>
+      </div>
+      <div class="split-label">Ye kharch kin-kin ke beech baantna hai? (dabakar chuno)</div>
+      <div class="chips" id="split-chips"></div>
+      <div class="share-hint num" id="share-hint"></div>
+      <button class="btn" id="add-entry-btn">Entry jodo</button>
+      <div style="text-align:center; margin-top:10px;" class="hidden" id="cancel-edit-row">
+        <button type="button" class="linkbtn" id="cancel-edit-btn">Badlaav raddh karo</button>
       </div>
     </div>
-    <div class="add-row">
-      <div class="grow amount-field">
-        <span class="rupee">₹</span>
-        <input id="entry-amount" type="number" inputmode="decimal" step="0.01" placeholder="0" />
-      </div>
-      <input id="entry-date" type="date" style="flex:1 1 140px;" />
-      <button type="button" class="calc-toggle" id="open-calc-from-form">🧮 Calculator</button>
-    </div>
-    <div class="add-row">
-      <textarea id="entry-note" placeholder="Note — jaise: chai-nashta, movie ticket..." rows="2"></textarea>
-    </div>
-    <button class="btn" id="add-entry-btn">Entry jodo</button>
-  </div>
 
-  <div class="ledger-head">
-    <h2>Sabhi entries</h2>
+    <h3 class="section-title">Sabhi entries</h3>
+    <div id="entries-list"></div>
   </div>
-  <div id="entries-list"></div>
 </div>
 
-<!-- Calculator floating widget -->
+<!-- Calculator (sirf khate ke andar dikhta hai) -->
 <div class="calc-drawer hidden" id="calc-drawer">
   <div id="calc-panel" class="calc-panel hidden">
     <div class="screen" id="calc-screen">0</div>
@@ -311,36 +322,63 @@
 
 <script>
 /* =====================================================================
-   0) FAST START — pehle se login ho to seedha entry page dikhao
-   (Firebase ka jawab aane ka intezaar nahin karte)
+   0) SHURUAATI CHEEZEIN (pehle se login ho to seedha app dikhao)
    ===================================================================== */
 const el = (id) => document.getElementById(id);
 const SESSION_KEY = "hk_session";
-function readSession() {
-  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch (e) { return null; }
-}
-function saveSession(v) {
-  try {
-    if (v) localStorage.setItem(SESSION_KEY, JSON.stringify(v));
-    else localStorage.removeItem(SESSION_KEY);
-  } catch (e) {}
-}
+const PENDING_KEY = "hk_pending_join";
+
+function readSession() { try { return JSON.parse(localStorage.getItem(SESSION_KEY) || "null"); } catch (e) { return null; } }
+function saveSession(v) { try { if (v) localStorage.setItem(SESSION_KEY, JSON.stringify(v)); else localStorage.removeItem(SESSION_KEY); } catch (e) {} }
+function getPendingJoin() { try { return localStorage.getItem(PENDING_KEY) || ""; } catch (e) { return ""; } }
+function setPendingJoin(c) { try { localStorage.setItem(PENDING_KEY, c); } catch (e) {} }
+function clearPendingJoin() { try { localStorage.removeItem(PENDING_KEY); } catch (e) {} }
+
+// Invite link (…/#join/CODE) se aaye ho to code yaad rakho
+(function captureInvite() {
+  const m = location.hash.match(/^#join\/([A-Za-z0-9]+)/);
+  if (m) {
+    setPendingJoin(m[1].toUpperCase());
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+})();
+
+/* ---------- state ---------- */
+let currentUser = null;
+let currentName = "";
+let userGroups = {};            // { groupId: {name} }
+let currentGid = null;
+let groupInfo = null;           // {name, code, ...}
+let members = {};               // { uid: {name} }
+let expenses = [];
+let splitSel = new Set();
+let splitInit = false;
+let lastMemberKey = "";
+let editingId = null;
+let navDepth = 0;
+let unsubUser = null, unsubGroup = null, unsubMembers = null, unsubExpenses = null;
+let isSignupMode = false;
+
 const cachedSession = readSession();
+if (cachedSession && cachedSession.groups) userGroups = cachedSession.groups;
+
 el("splash").classList.add("hidden");
 if (cachedSession) {
   el("app").classList.remove("hidden");
-  el("calc-drawer").classList.remove("hidden");
   el("who-line").textContent = "Logged in: " + (cachedSession.name || "");
-  el("entry-date").value = new Date().toISOString().slice(0, 10);
-  el("entries-list").innerHTML = '<div class="empty">Load ho raha hai...</div>';
+  if (/^#g\//.test(location.hash)) {
+    showView("group");
+  } else {
+    showView("home");
+    renderGroupsList(userGroups);
+  }
 } else {
   el("auth-screen").classList.remove("hidden");
+  if (getPendingJoin()) el("invite-hint").classList.remove("hidden");
 }
 
 /* =====================================================================
-   1) FIREBASE SETUP
-   Apna Firebase project banaakar yahaan uska config paste karo.
-   Ditel README.md mein hai.
+   1) FIREBASE
    ===================================================================== */
 const firebaseConfig = {
   apiKey: "AIzaSyAE5PF483T9XNjT34vz3SERYlPPUeD7R90",
@@ -350,25 +388,98 @@ const firebaseConfig = {
   messagingSenderId: "220988205333",
   appId: "1:220988205333:web:cd15e6688d9d26f02b211c"
 };
-
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-// Pichli entries phone mein save rakho, taaki app khulte hi turant dikhein
 db.enablePersistence({ synchronizeTabs: true }).catch(() => {});
 
 /* =====================================================================
-   2) STATE
+   2) HISAAB KA GANIT (seedha DOM se alag, taaki test ho sake)
    ===================================================================== */
-let currentUser = null;
-let currentName = "";
-let entries = [];
-let isSignupMode = false;
-let addWho = "me"; // "me" or "friend"
-let unsubscribeEntries = null;
+/* LOGIC-START */
+function toPaise(x) { return Math.round(Number(x) * 100); }
+
+// total paise ko uids mein baanto. Bacha hua paisa entry ke id ke hisaab se alag-alag logon ko jaata hai
+// (taaki hamesha ek hi vyakti ko na mile), aur sab phones par natija ek jaisa rehta hai
+function allocate(total, uids, seed) {
+  const sorted = [...uids].sort();
+  const n = sorted.length;
+  const out = {};
+  if (!n) return out;
+  const base = Math.floor(total / n);
+  const rem = total - base * n;
+  let h = 0;
+  String(seed || "").split("").forEach((ch) => { h = (h * 31 + ch.charCodeAt(0)) % 1000003; });
+  const start = h % n;
+  sorted.forEach((u) => { out[u] = base; });
+  for (let k = 0; k < rem; k++) out[sorted[(start + k) % n]] += 1;
+  return out;
+}
+
+function computeBalances(memberIds, list) {
+  const paid = {}, share = {}, setl = {};
+  memberIds.forEach((u) => { paid[u] = 0; share[u] = 0; setl[u] = 0; });
+  list.forEach((e) => {
+    const total = toPaise(e.amount);
+    if (!isFinite(total) || total <= 0) return;
+    if (paid[e.paidBy] === undefined) return;
+    const valid = (Array.isArray(e.splitAmong) ? e.splitAmong : []).filter((u) => paid[u] !== undefined);
+    if (!valid.length) return;
+    const parts = allocate(total, valid, e.id);
+    if (e.isSettlement) {
+      setl[e.paidBy] += total;
+      valid.forEach((u) => { setl[u] -= parts[u]; });
+    } else {
+      paid[e.paidBy] += total;
+      valid.forEach((u) => { share[u] += parts[u]; });
+    }
+  });
+  const net = {};
+  memberIds.forEach((u) => { net[u] = paid[u] - share[u] + setl[u]; });
+  return { paid, share, setl, net };
+}
+
+function suggestTransfers(net) {
+  const debt = [], cred = [];
+  Object.keys(net).forEach((u) => {
+    if (net[u] < 0) debt.push({ u, v: -net[u] });
+    else if (net[u] > 0) cred.push({ u, v: net[u] });
+  });
+  debt.sort((a, b) => b.v - a.v || (a.u < b.u ? -1 : 1));
+  cred.sort((a, b) => b.v - a.v || (a.u < b.u ? -1 : 1));
+  const out = [];
+  let i = 0, j = 0;
+  while (i < debt.length && j < cred.length) {
+    const x = Math.min(debt[i].v, cred[j].v);
+    out.push({ from: debt[i].u, to: cred[j].u, amount: x });
+    debt[i].v -= x; cred[j].v -= x;
+    if (debt[i].v === 0) i++;
+    if (cred[j].v === 0) j++;
+  }
+  return out;
+}
+
+function fmt(p) {
+  const neg = p < 0; p = Math.abs(p);
+  const s = (p / 100).toLocaleString("en-IN", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 });
+  return (neg ? "-" : "") + "₹" + s;
+}
+/* LOGIC-END */
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function formatDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+}
+function nameOf(uid, fallback) {
+  return (members[uid] && members[uid].name) || fallback || "Koi";
+}
 
 /* =====================================================================
-   3) AUTH SCREEN LOGIC
+   3) LOGIN / ACCOUNT
    ===================================================================== */
 el("switch-btn").addEventListener("click", () => {
   isSignupMode = !isSignupMode;
@@ -385,17 +496,12 @@ el("forgot-btn").addEventListener("click", async () => {
   const email = el("auth-email").value.trim();
   el("auth-error").classList.add("hidden");
   el("auth-info").classList.add("hidden");
-  if (!email) {
-    showAuthError("Pehle upar apna email likho, phir 'Password bhool gaye?' dabao.");
-    return;
-  }
+  if (!email) { showAuthError("Pehle upar apna email likho, phir 'Password bhool gaye?' dabao."); return; }
   try {
     await auth.sendPasswordResetEmail(email);
     el("auth-info").textContent = "Reset link bhej diya hai. Apna email kholo (Spam folder bhi dekho), link par dabao aur naya password banao.";
     el("auth-info").classList.remove("hidden");
-  } catch (err) {
-    showAuthError(friendlyAuthError(err));
-  }
+  } catch (err) { showAuthError(friendlyAuthError(err)); }
 });
 
 el("auth-submit").addEventListener("click", async () => {
@@ -403,36 +509,26 @@ el("auth-submit").addEventListener("click", async () => {
   const pass = el("auth-pass").value;
   const name = el("display-name").value.trim();
   el("auth-error").classList.add("hidden");
-
-  if (!email || !pass) {
-    showAuthError("Email aur password dono bharo.");
-    return;
-  }
+  if (!email || !pass) { showAuthError("Email aur password dono bharo."); return; }
   try {
     if (isSignupMode) {
-      if (!name) { showAuthError("Apna naam likho, taaki dusra vyakti tumhen pehchaan sake."); return; }
+      if (!name) { showAuthError("Apna naam likho, taaki dost tumhen pehchaan sakein."); return; }
       const cred = await auth.createUserWithEmailAndPassword(email, pass);
       await cred.user.updateProfile({ displayName: name });
       currentName = name;
-      saveSession({ name });
+      saveSession({ name, groups: userGroups });
       el("who-line").textContent = "Logged in: " + name;
-      await db.collection("users").doc(cred.user.uid).set({ name, email });
+      await db.collection("users").doc(cred.user.uid).set({ name, email }, { merge: true });
     } else {
       await auth.signInWithEmailAndPassword(email, pass);
     }
-  } catch (err) {
-    showAuthError(friendlyAuthError(err));
-  }
+  } catch (err) { showAuthError(friendlyAuthError(err)); }
 });
 
-function showAuthError(msg) {
-  el("auth-error").textContent = msg;
-  el("auth-error").classList.remove("hidden");
-}
-
+function showAuthError(msg) { el("auth-error").textContent = msg; el("auth-error").classList.remove("hidden"); }
 function friendlyAuthError(err) {
   const map = {
-    "auth/email-already-in-use": "Ye email pehle se registered hai — login karo.",
+    "auth/email-already-in-use": "Ye email pehle se registered hai, login karo.",
     "auth/invalid-email": "Email sahi format mein nahin hai.",
     "auth/weak-password": "Password kam se kam 6 letter ka hona chahiye.",
     "auth/wrong-password": "Password galat hai.",
@@ -443,7 +539,6 @@ function friendlyAuthError(err) {
   return map[err.code] || ("Kuchh gadbad ho gayi: " + err.message);
 }
 
-// Password dikhao / chhupao (aankh wala button)
 const EYE_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A10.9 10.9 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 function setPasswordVisible(visible) {
@@ -453,196 +548,502 @@ function setPasswordVisible(visible) {
   el("eye-btn").setAttribute("aria-label", visible ? "Password chhupao" : "Password dikhao");
 }
 setPasswordVisible(false);
-el("eye-btn").addEventListener("click", () => {
-  setPasswordVisible(el("auth-pass").type === "password");
-});
+el("eye-btn").addEventListener("click", () => setPasswordVisible(el("auth-pass").type === "password"));
 
 el("logout-btn").addEventListener("click", () => { setPasswordVisible(false); auth.signOut(); });
 
 /* =====================================================================
-   4) AUTH STATE -> SWITCH SCREENS
+   4) LOGIN HONE / LOGOUT HONE PAR SCREEN BADLO
    ===================================================================== */
 auth.onAuthStateChanged((user) => {
-  if (unsubscribeEntries) { unsubscribeEntries(); unsubscribeEntries = null; }
-
+  teardownAll();
   if (user) {
     currentUser = user;
     currentName = user.displayName || currentName || (cachedSession && cachedSession.name) || "Main";
-    saveSession({ name: currentName });
+    saveSession({ name: currentName, groups: userGroups });
 
     el("splash").classList.add("hidden");
     el("auth-screen").classList.add("hidden");
     el("app").classList.remove("hidden");
-    el("calc-drawer").classList.remove("hidden");
     el("who-line").textContent = "Logged in: " + currentName;
-    if (!el("entry-date").value) el("entry-date").value = new Date().toISOString().slice(0,10);
+    el("entry-date").value = new Date().toISOString().slice(0, 10);
 
-    listenToEntries();
+    db.collection("users").doc(user.uid).set({ name: currentName, email: user.email || "" }, { merge: true }).catch(() => {});
+    watchUserDoc();
+    route();
+    processPendingJoin();
   } else {
     currentUser = null;
+    userGroups = {};
     saveSession(null);
     el("splash").classList.add("hidden");
     el("app").classList.add("hidden");
     el("calc-drawer").classList.add("hidden");
     el("calc-panel").classList.add("hidden");
     el("auth-screen").classList.remove("hidden");
+    if (getPendingJoin()) el("invite-hint").classList.remove("hidden");
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+});
+
+function teardownAll() {
+  if (unsubUser) { unsubUser(); unsubUser = null; }
+  closeGroup();
+}
+
+function watchUserDoc() {
+  unsubUser = db.collection("users").doc(currentUser.uid).onSnapshot((snap) => {
+    const d = snap.exists ? snap.data() : {};
+    userGroups = d.groups || {};
+    saveSession({ name: currentName, groups: userGroups });
+    renderGroupsList(userGroups);
+  }, (err) => console.error(err));
+}
+
+/* =====================================================================
+   5) SCREEN / ROUTING (#g/<khata-id> = khata khula hai)
+   ===================================================================== */
+function showView(which) {
+  el("home-view").classList.toggle("hidden", which !== "home");
+  el("group-view").classList.toggle("hidden", which !== "group");
+  el("calc-drawer").classList.toggle("hidden", which !== "group");
+  if (which !== "group") el("calc-panel").classList.add("hidden");
+}
+
+function route() {
+  if (!currentUser) return;
+  const m = location.hash.match(/^#g\/([A-Za-z0-9]+)$/);
+  if (m) openGroup(m[1]);
+  else { navDepth = 0; closeGroup(); showView("home"); }
+}
+window.addEventListener("hashchange", route);
+
+function showHomeMsg(msg) {
+  el("home-msg").textContent = msg;
+  el("home-msg").classList.remove("hidden");
+}
+
+/* ---------- Home: khaaton ki list ---------- */
+function renderGroupsList(groups) {
+  const ids = Object.keys(groups || {});
+  const box = el("groups-list");
+  if (!ids.length) {
+    box.innerHTML = '<div class="empty">Abhi koi khata nahin hai. Naya khata banao, ya dost ka code daalkar judo.</div>';
+    return;
+  }
+  ids.sort((a, b) => (groups[a].name || "").localeCompare(groups[b].name || ""));
+  box.innerHTML = ids.map((id) =>
+    '<button class="group-card" data-gid="' + escapeHtml(id) + '"><span class="g-name">' +
+    escapeHtml(groups[id].name || "Khata") + '</span><span class="g-open">Kholo</span></button>'
+  ).join("");
+}
+el("groups-list").addEventListener("click", (e) => {
+  const b = e.target.closest(".group-card");
+  if (!b) return;
+  navDepth = 1;
+  location.hash = "#g/" + b.dataset.gid;
+});
+
+el("new-group-btn").addEventListener("click", () => {
+  el("new-group-form").classList.toggle("hidden");
+  el("join-group-form").classList.add("hidden");
+  el("home-msg").classList.add("hidden");
+  el("new-group-name").focus();
+});
+el("join-group-btn").addEventListener("click", () => {
+  el("join-group-form").classList.toggle("hidden");
+  el("new-group-form").classList.add("hidden");
+  el("home-msg").classList.add("hidden");
+  el("join-code").focus();
+});
+
+function makeCode() {
+  const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const bytes = new Uint8Array(8);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join("");
+}
+
+el("create-group-btn").addEventListener("click", async () => {
+  const name = el("new-group-name").value.trim();
+  if (!name) { showHomeMsg("Khate ka naam likho."); return; }
+  const btn = el("create-group-btn");
+  btn.disabled = true;
+  try {
+    const uid = currentUser.uid;
+    const gref = db.collection("groups").doc();
+    const code = makeCode();
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    await gref.set({ name, code, createdBy: uid, createdAt: ts });
+    await gref.collection("members").doc(uid).set({ uid, name: currentName, joinedAt: ts });
+    await db.collection("invites").doc(code).set({ groupId: gref.id, groupName: name, createdBy: uid, createdAt: ts });
+    await db.collection("users").doc(uid).set({ groups: { [gref.id]: { name } } }, { merge: true });
+    el("new-group-name").value = "";
+    el("new-group-form").classList.add("hidden");
+    navDepth = 1;
+    location.hash = "#g/" + gref.id;
+  } catch (err) {
+    showHomeMsg("Khata nahin ban paaya: " + err.message);
+  } finally { btn.disabled = false; }
+});
+
+el("join-submit-btn").addEventListener("click", async () => {
+  const code = el("join-code").value.trim();
+  if (!code) { showHomeMsg("Pehle code likho."); return; }
+  const ok = await joinWithCode(code, false);
+  if (ok) { el("join-code").value = ""; el("join-group-form").classList.add("hidden"); }
+});
+
+async function processPendingJoin() {
+  const code = getPendingJoin();
+  if (!code) return;
+  clearPendingJoin();
+  el("invite-hint").classList.add("hidden");
+  await joinWithCode(code, true);
+}
+
+async function joinWithCode(rawCode, askConfirm) {
+  const code = rawCode.trim().toUpperCase();
+  try {
+    const inv = await db.collection("invites").doc(code).get();
+    if (!inv.exists) { showHomeMsg("Ye code galat hai. Dobara check karo."); return false; }
+    const { groupId, groupName } = inv.data();
+    const uid = currentUser.uid;
+    const mref = db.collection("groups").doc(groupId).collection("members").doc(uid);
+    const mm = await mref.get();
+    if (!mm.exists) {
+      if (askConfirm && !confirm('"' + groupName + '" khate mein judna hai?')) return false;
+      await mref.set({ uid, name: currentName, code, joinedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+    await db.collection("users").doc(uid).set({ groups: { [groupId]: { name: groupName } } }, { merge: true });
+    navDepth = 1;
+    location.hash = "#g/" + groupId;
+    return true;
+  } catch (err) {
+    showHomeMsg("Judna nahin ho paaya: " + err.message);
+    return false;
+  }
+}
+
+/* =====================================================================
+   6) EK KHATA: LISTEN + RENDER
+   ===================================================================== */
+function openGroup(gid) {
+  if (currentGid === gid && unsubGroup) { showView("group"); return; }
+  closeGroup();
+  currentGid = gid;
+  showView("group");
+  el("home-msg").classList.add("hidden");
+  el("group-title").textContent = (userGroups[gid] && userGroups[gid].name) || "";
+  el("group-code").textContent = "...";
+  const gref = db.collection("groups").doc(gid);
+
+  unsubGroup = gref.onSnapshot((snap) => {
+    if (!snap.exists) { groupUnavailable(); return; }
+    groupInfo = snap.data();
+    el("group-title").textContent = groupInfo.name || "";
+    el("group-code").textContent = groupInfo.code || "";
+  }, () => groupUnavailable());
+
+  unsubMembers = gref.collection("members").onSnapshot((snap) => {
+    members = {};
+    snap.forEach((d) => { members[d.id] = { name: d.data().name || "?" }; });
+    syncSplitSelection();
+    renderAll();
+  }, () => {});
+
+  unsubExpenses = gref.collection("expenses").onSnapshot((snap) => {
+    expenses = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    expenses.sort((a, b) => {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : Date.now();
+      const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : Date.now();
+      return tb - ta;
+    });
+    renderAll();
+  }, () => {});
+}
+
+function groupUnavailable() {
+  showHomeMsg("Ye khata nahin mila, ya tum ismein shaamil nahin ho.");
+  history.replaceState(null, "", location.pathname + location.search);
+  route();
+}
+
+function closeGroup() {
+  [unsubGroup, unsubMembers, unsubExpenses].forEach((u) => { if (u) u(); });
+  unsubGroup = unsubMembers = unsubExpenses = null;
+  currentGid = null; groupInfo = null; members = {}; expenses = [];
+  splitSel = new Set(); splitInit = false; lastMemberKey = "";
+  resetForm();
+}
+
+function syncSplitSelection() {
+  const ids = Object.keys(members).sort();
+  const key = ids.join(",");
+  if (!splitInit || splitSel.size === 0) {
+    splitSel = new Set(ids); splitInit = ids.length > 0;
+  } else {
+    const prev = lastMemberKey ? lastMemberKey.split(",") : [];
+    const allBefore = prev.length > 0 && prev.every((u) => splitSel.has(u));
+    splitSel = allBefore ? new Set(ids) : new Set([...splitSel].filter((u) => ids.includes(u)));
+  }
+  lastMemberKey = key;
+}
+
+function renderAll() {
+  if (!currentUser || !currentGid) return;
+  const ids = Object.keys(members);
+  const bal = computeBalances(ids, expenses);
+  renderMyStatus(bal, ids);
+  renderTransfers(bal);
+  renderMembers(bal, ids);
+  renderChips();
+  renderEntries(ids);
+  updateShareHint();
+}
+
+function renderMyStatus(bal, ids) {
+  const my = bal.net[currentUser.uid] || 0;
+  const fig = el("my-figure"), sub = el("my-sub");
+  if (ids.length < 2) {
+    fig.textContent = "Abhi akele ho";
+    fig.className = "figure settled";
+    sub.textContent = "Upar diya code ya link dosto ko bhejo, phir wo judenge.";
+    return;
+  }
+  if (Math.abs(my) < 1) {
+    fig.textContent = "Hisaab barabar hai";
+    fig.className = "figure settled";
+    sub.textContent = "";
+  } else if (my > 0) {
+    fig.textContent = fmt(my);
+    fig.className = "figure num owe-me";
+    sub.textContent = "Tumhen milna hai";
+  } else {
+    fig.textContent = fmt(-my);
+    fig.className = "figure num owe-friend";
+    sub.textContent = "Tumhen dena hai";
+  }
+}
+
+function renderTransfers(bal) {
+  const box = el("transfers-list");
+  const me = currentUser.uid;
+  const list = suggestTransfers(bal.net);
+  if (!list.length) { box.innerHTML = '<div class="none-msg">Kisi ko kuchh dena nahin hai.</div>'; return; }
+  box.innerHTML = list.map((t, i) => {
+    const from = nameOf(t.from), to = nameOf(t.to);
+    if (t.from === me) {
+      return '<div class="transfer mine-pay"><span>Tum <b>' + escapeHtml(to) + '</b> ko dogey <span class="amt num">' + fmt(t.amount) +
+        '</span></span><button class="btn small" data-pay="' + i + '">Chuka diya</button></div>';
+    }
+    if (t.to === me) {
+      return '<div class="transfer mine-get"><span><b>' + escapeHtml(from) + '</b> tumhen dega <span class="amt num">' + fmt(t.amount) + '</span></span></div>';
+    }
+    return '<div class="transfer"><span><b>' + escapeHtml(from) + '</b> dega <b>' + escapeHtml(to) + '</b> ko <span class="amt num">' + fmt(t.amount) + '</span></span></div>';
+  }).join("");
+  box.dataset.transfers = JSON.stringify(list);
+}
+el("transfers-list").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-pay]");
+  if (!b) return;
+  const list = JSON.parse(el("transfers-list").dataset.transfers || "[]");
+  const t = list[Number(b.dataset.pay)];
+  if (!t) return;
+  if (!confirm(nameOf(t.to) + " ko " + fmt(t.amount) + " de diye? Ye ek entry ki tarah jud jaayega.")) return;
+  try {
+    await addExpenseDoc({ amount: t.amount / 100, splitAmong: [t.to], note: "Payment", isSettlement: true });
+  } catch (err) { alert("Entry save nahin ho payi: " + err.message); }
+});
+
+function renderMembers(bal, ids) {
+  const me = currentUser.uid;
+  const sorted = [...ids].sort((a, b) => (a === me ? -1 : b === me ? 1 : nameOf(a).localeCompare(nameOf(b))));
+  el("members-list").innerHTML = sorted.map((u) => {
+    const net = bal.net[u] || 0;
+    const cls = net > 0 ? "plus" : net < 0 ? "minus" : "";
+    const txt = net > 0 ? "milna hai " + fmt(net) : net < 0 ? "dena hai " + fmt(-net) : "barabar";
+    const pay = bal.setl[u] ? '<span>Payment <b class="num">' + fmt(bal.setl[u]) + '</b></span>' : "";
+    return '<div class="member-row"><div class="top"><span class="m-name">' + escapeHtml(nameOf(u)) + (u === me ? " (Tum)" : "") +
+      '</span><span class="m-net num ' + cls + '">' + txt + '</span></div><div class="detail"><span>Kharch kiya <b class="num">' + fmt(bal.paid[u]) +
+      '</b></span><span>Hissa <b class="num">' + fmt(bal.share[u]) + '</b></span>' + pay + '</div></div>';
+  }).join("") || '<div class="none-msg">Abhi koi member nahin.</div>';
+}
+
+function renderChips() {
+  const me = currentUser.uid;
+  const ids = Object.keys(members).sort((a, b) => (a === me ? -1 : b === me ? 1 : nameOf(a).localeCompare(nameOf(b))));
+  el("split-chips").innerHTML = ids.map((u) =>
+    '<button type="button" class="chip' + (splitSel.has(u) ? " on" : "") + '" data-uid="' + escapeHtml(u) + '">' +
+    escapeHtml(nameOf(u)) + (u === me ? " (Tum)" : "") + '</button>'
+  ).join("");
+}
+el("split-chips").addEventListener("click", (e) => {
+  const b = e.target.closest(".chip");
+  if (!b) return;
+  const u = b.dataset.uid;
+  if (splitSel.has(u)) splitSel.delete(u); else splitSel.add(u);
+  renderChips();
+  updateShareHint();
+});
+el("entry-amount").addEventListener("input", updateShareHint);
+
+function updateShareHint() {
+  const amt = parseFloat(el("entry-amount").value);
+  const n = splitSel.size;
+  const hint = el("share-hint");
+  if (!n) { hint.textContent = "Kam se kam ek vyakti chuno."; return; }
+  if (!amt || amt <= 0) { hint.textContent = ""; return; }
+  const parts = allocate(toPaise(amt), [...splitSel]);
+  const vals = Object.values(parts);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  hint.textContent = "Har ek ka hissa: " + (lo === hi ? fmt(lo) : fmt(lo) + " se " + fmt(hi));
+}
+
+function renderEntries(ids) {
+  const me = currentUser.uid;
+  const list = el("entries-list");
+  if (!expenses.length) { list.innerHTML = '<div class="empty">Abhi koi entry nahin hai. Upar se pehli entry jodo.</div>'; return; }
+  list.innerHTML = expenses.map((e) => {
+    const total = toPaise(e.amount);
+    const valid = (Array.isArray(e.splitAmong) ? e.splitAmong : []).filter((u) => members[u]);
+    const parts = allocate(total, valid, e.id);
+    const payer = nameOf(e.paidBy, e.createdByName);
+    const mine = e.createdBy === me;
+    let title, meta, mineShare = "";
+    if (e.isSettlement) {
+      title = escapeHtml(payer) + " ne " + escapeHtml(nameOf(valid[0])) + " ko chuka diye";
+      meta = "";
+    } else {
+      title = escapeHtml(payer) + " ne kharch kiye";
+      meta = valid.length && valid.length === ids.length
+        ? "Sab " + ids.length + " logon mein baanta"
+        : "Baanta: " + valid.map((u) => escapeHtml(nameOf(u))).join(", ");
+      mineShare = parts[me] !== undefined
+        ? '<div class="mine-share">Tumhara hissa <b class="num">' + fmt(parts[me]) + '</b></div>'
+        : '<div class="mine-share">Tumhare hisse mein nahin</div>';
+    }
+    return '<div class="entry' + (e.isSettlement ? " settle" : "") + '"><div class="top-line"><span class="who-name">' + title +
+      '</span><span class="amt num">' + fmt(total) + '</span></div>' +
+      (e.note && !e.isSettlement ? '<div class="note">' + escapeHtml(e.note) + '</div>' : "") +
+      (meta ? '<div class="meta">' + meta + '</div>' : "") + mineShare +
+      '<div class="meta num">' + formatDate(e.date) + '</div>' +
+      (mine ? '<div class="actions">' + (e.isSettlement ? "" : '<button class="linkbtn" data-edit="' + e.id + '">Badlo</button>') +
+        '<button class="linkbtn danger" data-del="' + e.id + '">Hatao</button></div>' : "") + '</div>';
+  }).join("");
+}
+
+el("entries-list").addEventListener("click", async (ev) => {
+  const ed = ev.target.closest("[data-edit]");
+  const del = ev.target.closest("[data-del]");
+  if (ed) startEdit(ed.dataset.edit);
+  if (del) {
+    if (!confirm("Ye entry hataani hai?")) return;
+    try { await db.collection("groups").doc(currentGid).collection("expenses").doc(del.dataset.del).delete(); }
+    catch (err) { alert("Hata nahin paaye: " + err.message); }
   }
 });
 
 /* =====================================================================
-   5) LEDGER: LISTEN, RENDER, ADD, DELETE
+   7) ENTRY JODNA / BADALNA
    ===================================================================== */
-function listenToEntries() {
-  unsubscribeEntries = db.collection("entries")
-    .onSnapshot((snap) => {
-      entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      // Sabse nayi date upar; same date par sabse nayi entry upar (index ki zaroorat nahin)
-      entries.sort((a, b) => {
-        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-        const ta = a.createdAt ? a.createdAt.toMillis() : Date.now();
-        const tb = b.createdAt ? b.createdAt.toMillis() : Date.now();
-        return tb - ta;
-      });
-      renderEntries();
-      renderBalance();
-    }, (err) => {
-      console.error(err);
-      el("entries-list").innerHTML = '<div class="empty">Data load nahin ho paaya. Firestore rules aur config check karo (README dekho).</div>';
-    });
-}
-
-function renderEntries() {
-  const list = el("entries-list");
-  if (entries.length === 0) {
-    list.innerHTML = '<div class="empty">Abhi koi entry nahin hai. Pehli entry upar se jodo.</div>';
-    return;
-  }
-  list.innerHTML = entries.map(e => {
-    const mine = e.createdBy === currentUser.uid;
-    const whoClass = e.who === "me_of_creator" ? "" : "";
-    // "who" stores who GAVE the money from the creator's point of view: "self" or "other"
-    const gaveIsCreator = e.who === "self";
-    const dotClass = gaveIsCreator ? (mine ? "me" : "friend") : (mine ? "friend" : "me");
-    const amtClass = dotClass;
-    const giverName = gaveIsCreator ? e.createdByName : otherName(e.createdByName);
-    return `
-      <div class="entry">
-        <div class="who-dot ${dotClass}"></div>
-        <div class="body">
-          <div class="top-line">
-            <span class="who-name">${escapeHtml(giverName)} ne diye</span>
-            <span class="amt ${amtClass} num">₹${Number(e.amount).toLocaleString('en-IN')}</span>
-          </div>
-          ${e.note ? `<div class="note">${escapeHtml(e.note)}</div>` : ""}
-          <div class="date num">${formatDate(e.date)}</div>
-          ${mine ? `<button class="del" data-id="${e.id}">Hatao</button>` : ""}
-        </div>
-      </div>`;
-  }).join("");
-
-  list.querySelectorAll(".del").forEach(btn => {
-    btn.addEventListener("click", () => deleteEntry(btn.dataset.id));
+async function addExpenseDoc({ amount, splitAmong, note, isSettlement }) {
+  const uid = currentUser.uid;
+  await db.collection("groups").doc(currentGid).collection("expenses").add({
+    amount: Math.round(amount * 100) / 100,
+    paidBy: uid,
+    splitAmong,
+    note: note || "",
+    date: new Date().toISOString().slice(0, 10),
+    isSettlement: !!isSettlement,
+    createdBy: uid,
+    createdByName: currentName,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   });
 }
 
-function otherName(creatorName) {
-  return "Dusra"; // display-only fallback; balance math doesn't depend on this
+function resetForm() {
+  editingId = null;
+  el("entry-amount").value = "";
+  el("entry-note").value = "";
+  el("add-entry-btn").textContent = "Entry jodo";
+  el("edit-note").classList.add("hidden");
+  el("cancel-edit-row").classList.add("hidden");
+  if (Object.keys(members).length) { splitSel = new Set(Object.keys(members)); }
 }
 
-function renderBalance() {
-  // "self" entries = money the entry's creator gave.
-  // We sum from OUR (currentUser) point of view:
-  //   moneyIGave   = entries where (creator == me AND who == self) OR (creator != me AND who == other)
-  //   moneyTheyGave= entries where (creator == me AND who == other) OR (creator != me AND who == self)
-  let iGave = 0, theyGave = 0;
-  entries.forEach(e => {
-    const mine = e.createdBy === currentUser.uid;
-    const creatorGave = e.who === "self";
-    const iAmGiver = (mine && creatorGave) || (!mine && !creatorGave);
-    if (iAmGiver) iGave += Number(e.amount) || 0;
-    else theyGave += Number(e.amount) || 0;
-  });
-  const net = iGave - theyGave;
-  const fig = el("balance-figure");
-  const sub = el("balance-sub");
-  if (Math.abs(net) < 0.005) {
-    fig.textContent = "Hisaab barabar hai";
-    fig.className = "figure settled";
-    sub.textContent = "";
-  } else if (net > 0) {
-    fig.textContent = "₹" + net.toLocaleString('en-IN', {maximumFractionDigits:2});
-    fig.className = "figure owe-me num";
-    sub.textContent = "Dost ko tumhen dene hain";
-  } else {
-    fig.textContent = "₹" + Math.abs(net).toLocaleString('en-IN', {maximumFractionDigits:2});
-    fig.className = "figure owe-friend num";
-    sub.textContent = "Tumhen dost ko dene hain";
-  }
+function startEdit(id) {
+  const e = expenses.find((x) => x.id === id);
+  if (!e) return;
+  editingId = id;
+  el("entry-amount").value = e.amount;
+  el("entry-date").value = e.date || new Date().toISOString().slice(0, 10);
+  el("entry-note").value = e.note || "";
+  splitSel = new Set((e.splitAmong || []).filter((u) => members[u]));
+  el("add-entry-btn").textContent = "Badlaav save karo";
+  el("edit-note").classList.remove("hidden");
+  el("cancel-edit-row").classList.remove("hidden");
+  renderChips(); updateShareHint();
+  el("entry-card").scrollIntoView({ behavior: "smooth", block: "center" });
 }
-
-el("who-toggle").addEventListener("click", (e) => {
-  const btn = e.target.closest("button[data-who]");
-  if (!btn) return;
-  addWho = btn.dataset.who;
-  el("who-toggle").querySelectorAll("button").forEach(b => b.classList.remove("active"));
-  btn.classList.add("active");
-});
-// default active state
-el("who-toggle").querySelector('[data-who="me"]').classList.add("active");
+el("cancel-edit-btn").addEventListener("click", () => { resetForm(); renderChips(); updateShareHint(); });
 
 el("add-entry-btn").addEventListener("click", async () => {
   const amount = parseFloat(el("entry-amount").value);
   const date = el("entry-date").value;
   const note = el("entry-note").value.trim();
-
   if (!amount || amount <= 0) { alert("Sahi amount daalo."); return; }
   if (!date) { alert("Date chuno."); return; }
-
+  if (!splitSel.size) { alert("Kam se kam ek vyakti chuno jiske beech baantna hai."); return; }
+  const btn = el("add-entry-btn");
+  btn.disabled = true;
   try {
-    await db.collection("entries").add({
-      amount,
-      date,
-      note,
-      who: addWho === "me" ? "self" : "other", // from the CREATOR's perspective
-      createdBy: currentUser.uid,
-      createdByName: currentName,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    el("entry-amount").value = "";
-    el("entry-note").value = "";
-  } catch (err) {
-    alert("Entry save nahin ho payi: " + err.message);
-  }
+    const col = db.collection("groups").doc(currentGid).collection("expenses");
+    const rounded = Math.round(amount * 100) / 100;
+    if (editingId) {
+      await col.doc(editingId).update({ amount: rounded, date, note, splitAmong: [...splitSel] });
+    } else {
+      const uid = currentUser.uid;
+      await col.add({
+        amount: rounded, paidBy: uid, splitAmong: [...splitSel], note, date,
+        isSettlement: false, createdBy: uid, createdByName: currentName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    resetForm(); renderChips(); updateShareHint();
+  } catch (err) { alert("Entry save nahin ho payi: " + err.message); }
+  finally { btn.disabled = false; }
 });
 
-async function deleteEntry(id) {
-  if (!confirm("Ye entry hataani hai?")) return;
+/* =====================================================================
+   8) DOSTO KO BHEJNA + WAPAS
+   ===================================================================== */
+el("share-btn").addEventListener("click", async () => {
+  if (!groupInfo) return;
+  const link = location.origin + location.pathname + "#join/" + groupInfo.code;
+  const text = 'Hisaab Khata mein "' + groupInfo.name + '" khate mein judo. Ye link kholo: ' + link + '  (ya code daalo: ' + groupInfo.code + ')';
   try {
-    await db.collection("entries").doc(id).delete();
-  } catch (err) {
-    alert("Hata nahin paaye: " + err.message);
-  }
-}
+    if (navigator.share) { await navigator.share({ title: "Hisaab Khata", text }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(text); alert("Link copy ho gaya. Ab dosto ko paste karke bhej do."); }
+  catch (e) { prompt("Ye link copy karke dosto ko bhejo:", text); }
+});
 
-function formatDate(iso) {
-  if (!iso) return "";
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
-}
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
+el("back-btn").addEventListener("click", () => {
+  if (navDepth > 0) history.back();
+  else { history.replaceState(null, "", location.pathname + location.search); route(); }
+});
 
 /* =====================================================================
-   6) CALCULATOR (standalone, purely client-side — no data involved)
+   9) CALCULATOR
    ===================================================================== */
 const calcKeys = ["7","8","9","÷","4","5","6","×","1","2","3","−","0",".","⌫","+","C","="];
 let calcExpr = "";
-
 function buildCalc() {
   const grid = el("calc-grid");
   grid.innerHTML = "";
-  calcKeys.forEach(k => {
+  calcKeys.forEach((k) => {
     const b = document.createElement("button");
     b.textContent = k;
     if (["÷","×","−","+"].includes(k)) b.classList.add("op");
@@ -652,44 +1053,33 @@ function buildCalc() {
   });
 }
 function calcPress(k) {
-  if (k === "C") { calcExpr = ""; }
-  else if (k === "⌫") { calcExpr = calcExpr.slice(0, -1); }
+  if (k === "C") calcExpr = "";
+  else if (k === "⌫") calcExpr = calcExpr.slice(0, -1);
   else if (k === "=") {
     try {
-      const safe = calcExpr.replace(/×/g,"*").replace(/÷/g,"/").replace(/−/g,"-");
+      const safe = calcExpr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
       if (!/^[0-9+\-*/.() ]*$/.test(safe)) throw new Error("bad");
       const result = Function('"use strict"; return (' + safe + ')')();
       calcExpr = String(Math.round((result + Number.EPSILON) * 100) / 100);
     } catch { calcExpr = "Error"; }
-  } else {
-    calcExpr += k;
-  }
+  } else calcExpr += k;
   el("calc-screen").textContent = calcExpr || "0";
 }
 buildCalc();
-
-el("calc-fab").addEventListener("click", () => {
-  el("calc-panel").classList.toggle("hidden");
-});
-el("open-calc-from-form").addEventListener("click", () => {
-  el("calc-panel").classList.remove("hidden");
-});
+el("calc-fab").addEventListener("click", () => el("calc-panel").classList.toggle("hidden"));
+el("open-calc-from-form").addEventListener("click", () => el("calc-panel").classList.remove("hidden"));
 el("calc-use-btn").addEventListener("click", () => {
   const val = parseFloat(calcExpr);
-  if (!isNaN(val)) {
-    el("entry-amount").value = Math.abs(val);
-  }
+  if (!isNaN(val)) { el("entry-amount").value = Math.abs(val); updateShareHint(); }
   el("calc-panel").classList.add("hidden");
 });
 
 /* =====================================================================
-   7) INSTALL BUTTON (Android Chrome: link kholte hi "Install karo" dikhta hai)
+   10) INSTALL BUTTON (Android Chrome)
    ===================================================================== */
 let deferredInstall = null;
 const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-function installDismissed() {
-  try { return localStorage.getItem("hk_install_dismissed") === "1"; } catch (e) { return false; }
-}
+function installDismissed() { try { return localStorage.getItem("hk_install_dismissed") === "1"; } catch (e) { return false; } }
 function showInstallBanner(text, withButton) {
   if (isStandalone || installDismissed()) return;
   el("install-text").textContent = text;
@@ -697,14 +1087,12 @@ function showInstallBanner(text, withButton) {
   el("install-banner").classList.remove("hidden");
 }
 function hideInstallBanner() { el("install-banner").classList.add("hidden"); }
-
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredInstall = e;
   showInstallBanner("Is app ko phone mein install karo, seedha home screen se khulega.", true);
 });
 window.addEventListener("appinstalled", () => { deferredInstall = null; hideInstallBanner(); });
-
 el("install-btn").addEventListener("click", async () => {
   if (!deferredInstall) return;
   deferredInstall.prompt();
@@ -716,17 +1104,13 @@ el("install-dismiss").addEventListener("click", () => {
   hideInstallBanner();
   try { localStorage.setItem("hk_install_dismissed", "1"); } catch (e) {}
 });
-
-// iPhone par install ka automatic button nahin milta, isliye sirf tarika bataate hain
 if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
   showInstallBanner("Install karne ke liye Safari mein Share dabao, phir 'Add to Home Screen' chuno.", false);
 }
 
 // PWA: service worker register (app install hone ke liye zaroori)
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {});
-  });
+  window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); });
 }
 </script>
 </body>
