@@ -387,10 +387,15 @@ auth.onAuthStateChanged(async (user) => {
    ===================================================================== */
 function listenToEntries() {
   unsubscribeEntries = db.collection("entries")
-    .orderBy("date", "desc")
-    .orderBy("createdAt", "desc")
     .onSnapshot((snap) => {
       entries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Sabse nayi date upar; same date par sabse nayi entry upar (index ki zaroorat nahin)
+      entries.sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        const ta = a.createdAt ? a.createdAt.toMillis() : Date.now();
+        const tb = b.createdAt ? b.createdAt.toMillis() : Date.now();
+        return tb - ta;
+      });
       renderEntries();
       renderBalance();
     }, (err) => {
